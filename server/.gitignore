@@ -22,7 +22,6 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
-Dockerfile
 requirements.txt
 
 # Byte-compiled / optimized / DLL files
