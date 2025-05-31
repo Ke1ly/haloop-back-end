@@ -1,0 +1,732 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>帳號管理｜換煥 Haloop</title>
+    <!-- <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" /> -->
+    <link rel="stylesheet" href="/css/share.css" />
+    <link rel="stylesheet" href="/css/acoount.css" />
+    <script defer type="module" src="/src/pages/account.ts"></script>
+    <script defer type="module" src="/src/pages/nav.ts"></script>
+    <script
+      src="https://kit.fontawesome.com/adad1a32e8.js"
+      crossorigin="anonymous"
+    ></script>
+    <!-- <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script> -->
+  </head>
+  <body>
+    <header>
+      <div>
+        <div class="left"><a href="/">換煥 Haloop</a></div>
+        <div class="right">
+          <!-- <i class="fa-solid fa-comment"></i> -->
+          <!-- <div id="notification-position-div">
+            <div id="notification-list"></div>
+          </div> -->
+          <i class="fa-solid fa-bell"></i>
+          <div id="notification-count">3</div>
+          <!-- <div id="notification-count">3</div> -->
+          <div id="menu-position-div">
+            <div id="visitor-menu">
+              <div id="sign-up-div">註冊</div>
+              <div id="sign-in-div">登入</div>
+            </div>
+            <div id="helper-menu">
+              <div>收藏清單</div>
+              <div>訂閱</div>
+              <div>旅程</div>
+              <hr />
+              <div class="account-management-btn">帳號</div>
+              <div class="log-out-btn">登出</div>
+            </div>
+            <div id="host-menu">
+              <div>申請清單</div>
+              <div>訂閱</div>
+              <hr />
+              <div class="account-management-btn">帳號</div>
+              <div class="log-out-btn">登出</div>
+            </div>
+            <div id="notification-list"></div>
+          </div>
+          <button id="show-menu-btn">
+            <i class="fa-solid fa-bars"></i>
+            <i class="fa-solid fa-user"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+    <nav>
+      <div id="user-profile-btn">帳號基本資料</div>
+      <div id="helper-profile-btn">幫手檔案</div>
+      <div id="host-profile-btn">招募檔案</div>
+    </nav>
+
+    <main>
+      <!-- USER PROFILE -->
+      <section id="user-profile-section">
+        <section id="basic-profile-top">
+          <form id="basic-profile-top-form">
+            <div id="basic-profile-top-form-wrap">
+              <label for="username">用戶名</label>
+              <input type="text" id="username" />
+              <label for="realname">真實姓名</label>
+              <input type="text" id="realname" />
+              <label for="email-address">電子郵件</label>
+              <input type="email" id="email-address" />
+              <label for="phone-number">手機號碼</label>
+              <input type="tel" id="phone-number" />
+            </div>
+          </form>
+        </section>
+        <section id="basic-profile-bottom">
+          <form id="basic-profile-bottom-form">
+            <div id="basic-profile-bottom-form-wrap">
+              <label for="unit-name">單位名稱</label>
+              <input type="text" id="unit-name" />
+              <label for="unit-address">地址</label>
+              <input type="text" id="unit-address" />
+
+              <label for="unit-city">縣市</label>
+              <input
+                list="city-list"
+                type="text"
+                id="unit-city"
+                placeholder="單位所在縣市"
+              />
+              <datalist id="city-list">
+                <option value="基隆市">基隆市</option>
+                <option value="臺北市">臺北市</option>
+                <option value="新北市">新北市</option>
+                <option value="桃園市">桃園市</option>
+                <option value="新竹市">新竹市</option>
+                <option value="新竹縣">新竹縣</option>
+                <option value="苗栗縣">苗栗縣</option>
+                <option value="臺中市">臺中市</option>
+                <option value="彰化縣">彰化縣</option>
+                <option value="南投縣">南投縣</option>
+                <option value="雲林縣">雲林縣</option>
+                <option value="嘉義縣">嘉義縣</option>
+                <option value="嘉義市">嘉義市</option>
+                <option value="臺南市">臺南市</option>
+                <option value="高雄市">高雄市</option>
+                <option value="屏東縣">屏東縣</option>
+                <option value="宜蘭縣">宜蘭縣</option>
+                <option value="花蓮縣">花蓮縣</option>
+                <option value="臺東縣">臺東縣</option>
+                <option value="澎湖縣">澎湖縣</option>
+                <option value="金門縣">金門縣</option>
+                <option value="連江縣">連江縣</option>
+              </datalist>
+
+              <label for="unit-description">單位介紹</label>
+              <textarea id="unit-description"></textarea>
+            </div>
+          </form>
+        </section>
+        <div id="save-userform-data-btn-div">
+          <button id="save-userform-data-btn">儲存變更</button>
+        </div>
+      </section>
+
+      <!-- HOST PROFILE -->
+      <section id="host-profile-section">
+        <section id="host-profile-top">
+          <div id="host-profile-top-wrap">
+            <form action="" id="host-profile-general">
+              <div id="host-profile-top-middle">
+                <label
+                  >換宿機會開始於 <input type="date" id="work-start-date"
+                /></label>
+                <label
+                  >換宿機會結束於 <input type="date" id="work-end-date"
+                /></label>
+                <label for="">每時段邀請人數</label>
+                <select id="recruit-count">
+                  <option value="1">1</option>
+                  <option value="2">2</option>
+                  <option value="3">3</option>
+                  <option value="4">4</option>
+                  <option value="5">5</option>
+                  <option value="6">6</option>
+                  <option value="7">7</option>
+                  <option value="8">8</option>
+                  <option value="9">9</option>
+                  <option value="10">10</option>
+                </select>
+              </div>
+              <div id="host-profile-top-right">
+                <label for="">上傳環境照片</label>
+                <input
+                  type="file"
+                  id="host-img-file"
+                  multiple
+                  accept="image/*"
+                />
+              </div>
+              <!-- <button class="save-form-data">儲存變更</button> -->
+            </form>
+          </div>
+        </section>
+        <section id="host-profile-bottom">
+          <div id="host-profile-bottom-left-wrap">
+            <h5>您的需求</h5>
+            <form id="host-profile-need">
+              <label for="position-name">志願工作名稱</label>
+              <input
+                type="text"
+                id="position-name"
+                placeholder="例如：房務與櫃檯幫手"
+              />
+              <label>志願工作分類</label>
+              <div id="position-category-option-btns">
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-id="1"
+                  data-value="餐飲內場"
+                >
+                  餐飲內場
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-id="2"
+                  data-value="餐飲外場"
+                >
+                  餐飲外場
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-id="3"
+                  data-value="咖啡飲品調製"
+                >
+                  咖啡飲品調製
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="咖啡廳／酒吧外場"
+                  data-id="4"
+                >
+                  咖啡廳／酒吧外場
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="接待"
+                  data-id="5"
+                >
+                  接待
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="裝備租借與清洗"
+                  data-id="6"
+                >
+                  裝備租借與清洗
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="房務"
+                  data-id="7"
+                >
+                  房務
+                </button>
+
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="店面／公共區域清掃"
+                  data-id="8"
+                >
+                  店面／公共區域清掃
+                </button>
+
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="插畫"
+                  data-id="9"
+                >
+                  插畫
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="平面設計"
+                  data-id="10"
+                >
+                  平面設計
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="油漆"
+                  data-id="11"
+                >
+                  油漆
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="木工"
+                  data-id="12"
+                >
+                  木工
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="農務"
+                  data-id="13"
+                >
+                  農務
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="平面攝影"
+                  data-id="14"
+                >
+                  平面攝影
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="影片剪輯"
+                  data-id="15"
+                >
+                  影片剪輯
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="網站架設"
+                  data-id="16"
+                >
+                  網站架設
+                </button>
+
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="內容創作"
+                  data-id="17"
+                >
+                  內容創作
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="行銷企劃"
+                  data-id="18"
+                >
+                  行銷企劃
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="展覽／市集／活動協助"
+                  data-id="19"
+                >
+                  展覽／市集／活動協助
+                </button>
+                <button
+                  type="button"
+                  class="position-category-option-btn toggle-option"
+                  data-value="其他"
+                  data-id="20"
+                >
+                  其他
+                </button>
+              </div>
+              <label for="average-work-hours">平均每日工時</label>
+              <select name="" id="average-work-hours">
+                <option value="1">1</option>
+                <option value="2">2</option>
+                <option value="3">3</option>
+                <option value="4">4</option>
+                <option value="5">5</option>
+                <option value="6">6</option>
+              </select>
+              <label for="min-stay-days">最短停留</label>
+
+              <select name="" id="min-stay-days">
+                <option value="0">無限制</option>
+                <option value="7">一週</option>
+                <option value="14">兩週</option>
+                <option value="21">三週</option>
+                <option value="30">一個月</option>
+                <option value="60">兩個月</option>
+                <option value="90">兩個月以上</option>
+              </select>
+              <label>必需條件</label>
+              <div id="required-option-btns">
+                <button
+                  type="button"
+                  class="required-option-btn toggle-option"
+                  data-value="需有汽車駕照"
+                  data-id="1"
+                >
+                  需有汽車駕照
+                </button>
+                <button
+                  type="button"
+                  class="required-option-btn toggle-option"
+                  data-value="需有機車駕照"
+                  data-id="2"
+                >
+                  需有機車駕照
+                </button>
+                <button
+                  type="button"
+                  class="required-option-btn toggle-option"
+                  data-value="需自備機車"
+                  data-id="3"
+                >
+                  需自備機車
+                </button>
+                <button
+                  type="button"
+                  class="required-option-btn toggle-option"
+                  data-value="需接受動物 / 寵物"
+                  data-id="4"
+                >
+                  需接受動物 / 寵物
+                </button>
+                <button
+                  type="button"
+                  class="required-option-btn toggle-option"
+                  data-value="需搬重物"
+                  data-id="5"
+                >
+                  需搬重物
+                </button>
+              </div>
+              <label for="position-description">需求說明</label>
+              <textarea
+                placeholder="針對工作與需求補充說明"
+                id="position-description"
+              ></textarea>
+              <!-- <button class="save-form-data">儲存變更</button> -->
+            </form>
+          </div>
+          <div id="host-profile-bottom-right-wrap">
+            <h5>您將提供</h5>
+            <form action="" id="host-profile-offer">
+              <label>住宿類型</label>
+              <div id="accommodation-option-btns">
+                <button
+                  type="button"
+                  class="accommodation-option-btn toggle-option"
+                  data-value="男女分宿"
+                  data-id="1"
+                >
+                  男女分宿
+                </button>
+                <button
+                  type="button"
+                  class="accommodation-option-btn toggle-option"
+                  data-value="男女混宿"
+                  data-id="2"
+                >
+                  男女混宿
+                </button>
+                <button
+                  type="button"
+                  class="accommodation-option-btn toggle-option"
+                  data-value="單人房"
+                  data-id="3"
+                >
+                  單人房
+                </button>
+                <button
+                  type="button"
+                  class="accommodation-option-btn toggle-option"
+                  data-value="雙人房"
+                  data-id="4"
+                >
+                  雙人房
+                </button>
+                <button
+                  type="button"
+                  class="accommodation-option-btn toggle-option"
+                  data-value="上下舖"
+                  data-id="5"
+                >
+                  上下舖
+                </button>
+                <button
+                  type="button"
+                  class="accommodation-option-btn toggle-option"
+                  data-value="共用衛浴"
+                  data-id="6"
+                >
+                  共用衛浴
+                </button>
+                <button
+                  type="button"
+                  class="accommodation-option-btn toggle-option"
+                  data-value="獨立衛浴"
+                  data-id="7"
+                >
+                  獨立衛浴
+                </button>
+                <button
+                  type="button"
+                  class="accommodation-option-btn toggle-option"
+                  data-value="有冷氣"
+                  data-id="8"
+                >
+                  有冷氣
+                </button>
+                <button
+                  type="button"
+                  class="accommodation-option-btn toggle-option"
+                  data-value="有 Wi-Fi"
+                  data-id="9"
+                >
+                  有 Wi-Fi
+                </button>
+                <button
+                  type="button"
+                  class="accommodation-option-btn toggle-option"
+                  data-value="有洗衣機"
+                  data-id="10"
+                >
+                  有洗衣機
+                </button>
+              </div>
+              <label>餐食類型</label>
+              <div id="meal-option-btns">
+                <button
+                  type="button"
+                  class="meal-option-btn toggle-option"
+                  data-value="供早餐"
+                  data-id="1"
+                >
+                  供早餐
+                </button>
+                <button
+                  type="button"
+                  class="meal-option-btn toggle-option"
+                  data-value="供午餐"
+                  data-id="2"
+                >
+                  供午餐
+                </button>
+                <button
+                  type="button"
+                  class="meal-option-btn toggle-option"
+                  data-value="供晚餐"
+                  data-id="3"
+                >
+                  供晚餐
+                </button>
+                <button
+                  type="button"
+                  class="meal-option-btn toggle-option"
+                  data-value="僅工作時段供餐"
+                  data-id="4"
+                >
+                  僅工作時段供餐
+                </button>
+                <button
+                  type="button"
+                  class="meal-option-btn toggle-option"
+                  data-value="餐費補貼"
+                  data-id="5"
+                >
+                  餐費補貼
+                </button>
+                <button
+                  type="button"
+                  class="meal-option-btn toggle-option"
+                  data-value="有共用廚房可開伙"
+                  data-id="6"
+                >
+                  有共用廚房可開伙
+                </button>
+              </div>
+              <label>特色體驗</label>
+              <div id="experience-option-btns">
+                <button
+                  type="button"
+                  class="experience-option-btn toggle-option"
+                  data-value="衝浪體驗"
+                  data-id="1"
+                >
+                  衝浪體驗
+                </button>
+                <button
+                  type="button"
+                  class="experience-option-btn toggle-option"
+                  data-value="SUP、獨木舟體驗"
+                  data-id="2"
+                >
+                  SUP、獨木舟體驗
+                </button>
+                <button
+                  type="button"
+                  class="experience-option-btn toggle-option"
+                  data-value="浮潛體驗"
+                  data-id="3"
+                >
+                  浮潛體驗
+                </button>
+                <button
+                  type="button"
+                  class="experience-option-btn toggle-option"
+                  data-value="潛水體驗"
+                  data-id="4"
+                >
+                  潛水體驗
+                </button>
+
+                <button
+                  type="button"
+                  class="experience-option-btn toggle-option"
+                  data-value="潛水考照"
+                  data-id="5"
+                >
+                  潛水考照
+                </button>
+                <button
+                  type="button"
+                  class="experience-option-btn toggle-option"
+                  data-value="咖啡教學"
+                  data-id="6"
+                >
+                  咖啡教學
+                </button>
+                <button
+                  type="button"
+                  class="experience-option-btn toggle-option"
+                  data-value="調酒教學"
+                  data-id="7"
+                >
+                  調酒教學
+                </button>
+                <button
+                  type="button"
+                  class="experience-option-btn toggle-option"
+                  data-value="異國文化交流"
+                  data-id="8"
+                >
+                  異國文化交流
+                </button>
+                <button
+                  type="button"
+                  class="experience-option-btn toggle-option"
+                  data-value="當地行程導覽"
+                  data-id="9"
+                >
+                  當地行程導覽
+                </button>
+                <button
+                  type="button"
+                  class="experience-option-btn toggle-option"
+                  data-value="工作坊或講座"
+                  data-id="10"
+                >
+                  工作坊或講座
+                </button>
+              </div>
+              <label for="">友善環境</label>
+              <div id="environment-option-btns">
+                <button
+                  type="button"
+                  class="environment-option-btn toggle-option"
+                  data-value="寵物友善"
+                  data-id="1"
+                >
+                  寵物友善
+                </button>
+                <button
+                  type="button"
+                  class="environment-option-btn toggle-option"
+                  data-value="無障礙環境"
+                  data-id="2"
+                >
+                  無障礙環境
+                </button>
+                <button
+                  type="button"
+                  class="environment-option-btn toggle-option"
+                  data-value="歡迎 LGTBQ 族群"
+                  data-id="3"
+                >
+                  歡迎 LGTBQ 族群
+                </button>
+                <button
+                  type="button"
+                  class="environment-option-btn toggle-option"
+                  data-value="歡迎中高齡退休族群"
+                  data-id="4"
+                >
+                  歡迎中高齡退休族群
+                </button>
+                <button
+                  type="button"
+                  class="environment-option-btn toggle-option"
+                  data-value="歡迎攜帶孩童"
+                  data-id="5"
+                >
+                  歡迎攜帶孩童
+                </button>
+                <button
+                  type="button"
+                  class="environment-option-btn toggle-option"
+                  data-value="歡迎初次打工換宿者"
+                  data-id="6"
+                >
+                  歡迎初次打工換宿者
+                </button>
+                <button
+                  type="button"
+                  class="environment-option-btn toggle-option"
+                  data-value="女性員工過半"
+                  data-id="7"
+                >
+                  女性員工過半
+                </button>
+                <button
+                  type="button"
+                  class="environment-option-btn toggle-option"
+                  data-value="提供腳踏車代步"
+                  data-id="8"
+                >
+                  提供腳踏車代步
+                </button>
+                <button
+                  type="button"
+                  class="environment-option-btn toggle-option"
+                  data-value="提供機車代步"
+                  data-id="9"
+                >
+                  提供機車代步
+                </button>
+              </div>
+              <label for="benefits-description">福利說明</label>
+              <textarea
+                placeholder="針對提供的支持與環境補充說明"
+                id="benefits-description"
+              ></textarea>
+              <!-- <button class="save-form-data">儲存變更</button> -->
+            </form>
+          </div>
+        </section>
+        <div id="post-work-btn-div">
+          <button id="post-work-btn">發布</button>
+        </div>
+      </section>
+
+      <!-- HELPER PROFILE -->
+      <section id="helper-profile-section"></section>
+    </main>
+  </body>
+</html>

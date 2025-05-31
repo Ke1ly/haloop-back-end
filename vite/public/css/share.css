@@ -1,0 +1,190 @@
+:root {
+  --primary-text-color: #000000;
+  --secondary-text-color: #9a9a9a;
+  --light-background-color: #ffffff;
+  --dark-background-color: #616161;
+  --primary-button-color: rgb(235, 235, 235);
+  /* --primary-button-border: rgb(0, 0, 0); */
+}
+* {
+  font-weight: normal;
+  margin: 0;
+  padding: 0;
+}
+body > header {
+  box-shadow: 0px 3px 3px rgba(0, 0, 0, 0.05);
+  padding: 15px 0px;
+}
+body > header > div {
+  /* border: 1px solid rebeccapurple; */
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  max-width: 1200px;
+  margin: 0px auto;
+}
+body > header > div > div.left {
+  a {
+    text-decoration: none;
+    color: black;
+    font-weight: 700;
+    margin-left: 10px;
+  }
+}
+body > header > div > div.right {
+  /* border: 1px solid rebeccapurple; */
+  display: flex;
+  flex-direction: row;
+  /* justify-content: center; */
+  align-items: center;
+  i.fa-bell {
+    cursor: pointer;
+    margin-right: 10px;
+  }
+  div#notification-count {
+    position: relative;
+    top: -15px;
+    left: -15px;
+    padding: 5px 5px;
+    border-radius: 50%;
+    width: 10px;
+    height: 10px;
+    font-size: 10px;
+    text-align: center;
+    line-height: 10px;
+    background-color: #950000;
+    color: #eaeaea;
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+  }
+  div#menu-position-div {
+    position: relative;
+    top: 20px;
+    left: -50px;
+    /* border: 1px solid firebrick; */
+    padding: 3px 3px;
+    div#visitor-menu,
+    div#helper-menu,
+    div#host-menu {
+      position: absolute;
+      top: 10px;
+      left: -10px;
+      padding: 0px 20px;
+      padding-top: 15px;
+      padding-bottom: 5px;
+      border-radius: 10px;
+      width: 100px;
+      background-color: #ffffff;
+      box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+      hr {
+        margin-bottom: 10px;
+      }
+      div {
+        padding-bottom: 10px;
+        text-align: left;
+        cursor: pointer;
+      }
+      display: none;
+    }
+
+    div#notification-list {
+      position: absolute;
+      top: 10px;
+      left: -150px;
+      padding: 15px 20px;
+      border-radius: 10px;
+      width: 150px;
+      background-color: #ffffff;
+      box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+      display: none;
+    }
+  }
+  button {
+    border: none;
+    background: none;
+    padding: 15px 15px;
+    background-color: var(--primary-button-color);
+    border-radius: 30px;
+    margin-right: 10px;
+    cursor: pointer;
+    i {
+      margin: 0px 3px;
+    }
+  }
+}
+
+body > dialog#sign-up-dialog,
+dialog#sign-in-dialog {
+  width: 300px;
+  border-radius: 15px;
+  border: none;
+  position: fixed;
+  top: -200px;
+  left: 50%;
+  transform: translateX(-50%);
+  transition: top 0.5s ease-out;
+  padding: 20px 20px;
+
+  p {
+    font-size: 14px;
+    font-weight: 700;
+    text-align: center;
+  }
+  hr {
+    margin: 15px 0px;
+  }
+  form {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    input {
+      width: 250px;
+      margin-top: 5px;
+      margin-bottom: 10px;
+      margin-left: 5px;
+      padding: 15px;
+      border: 1px solid #cccccc;
+      border-radius: 8px;
+      outline: #000000;
+      &:focus {
+        border: 1.5px solid #000000;
+      }
+    }
+    div#sign-up-role-div,
+    div#sign-in-role-div {
+      display: flex;
+      flex-direction: row;
+      button.sign-up-role,
+      button.sign-in-role {
+        margin: 5px 3px;
+        padding: 8px 15px;
+        border: 1px solid #cccccc;
+        border-radius: 20px;
+        background-color: white;
+        cursor: pointer;
+      }
+      button.sign-up-role.selected,
+      button.sign-in-role.selected {
+        background-color: #eaeaea;
+        border: 1px solid #000000;
+      }
+    }
+    button.sign-up-submit-btn,
+    button.sign-in-submit-btn {
+      width: 200px;
+      border: none;
+      background: none;
+      padding: 15px 15px;
+      background-color: var(--primary-button-color);
+      border-radius: 15px;
+      cursor: pointer;
+      margin: 10px 0px;
+    }
+  }
+}
+
+dialog#sign-up-dialog.show,
+dialog#sign-in-dialog.show {
+  top: 80px;
+}

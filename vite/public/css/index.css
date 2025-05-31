@@ -1,0 +1,43 @@
+:root {
+  --primary-text-color: #000000;
+  --secondary-text-color: #9a9a9a;
+  --light-background-color: #ffffff;
+  --dark-background-color: #616161;
+  --primary-button-color: rgb(235, 235, 235);
+  /* --primary-button-border: rgb(0, 0, 0); */
+}
+body > section#hero {
+  max-width: 1200px;
+  margin: 0px auto;
+  padding: 50px 10px;
+  h3 {
+    font-size: 24px;
+    font-weight: 700;
+  }
+  h5 {
+    margin: 10px 0px;
+    line-height: 24px;
+  }
+  button {
+    border: none;
+    background: none;
+    background-color: var(--primary-button-color);
+    padding: 10px 15px;
+    border-radius: 30px;
+    cursor: pointer;
+  }
+}
+body > section#explore-button {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  button {
+    border: none;
+    background: none;
+    background-color: var(--primary-button-color);
+    padding: 10px 15px;
+    border-radius: 30px;
+    margin: 0px 10px;
+    cursor: pointer;
+  }
+}

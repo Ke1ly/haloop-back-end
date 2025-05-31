@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <!-- <link rel="icon" type="image/svg+xml" href="/vite.svg" /> -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>換煥 Haloop</title>
+    <script
+      src="https://kit.fontawesome.com/adad1a32e8.js"
+      crossorigin="anonymous"
+    ></script>
+    <link rel="stylesheet" href="/css/share.css" />
+    <link rel="stylesheet" href="/css/index.css" />
+    <script defer type="module" src="/src/pages/nav.ts"></script>
+  </head>
+
+  <body>
+    <header>
+      <div>
+        <div class="left"><a href="#">換煥 Haloop</a></div>
+        <div class="right">
+          <!-- <i class="fa-solid fa-comment"></i> -->
+          <!-- <div id="notification-position-div">
+            <div id="notification-list"></div>
+          </div> -->
+          <i class="fa-solid fa-bell"></i>
+          <div id="notification-count">3</div>
+          <!-- <div id="notification-count">3</div> -->
+          <div id="menu-position-div">
+            <div id="visitor-menu">
+              <div id="sign-up-div">註冊</div>
+              <div id="sign-in-div">登入</div>
+            </div>
+            <div id="helper-menu">
+              <div>收藏清單</div>
+              <div>訂閱</div>
+              <div>旅程</div>
+              <hr />
+              <div class="account-management-btn">帳號</div>
+              <div class="log-out-btn">登出</div>
+            </div>
+            <div id="host-menu">
+              <div>申請清單</div>
+              <div>訂閱</div>
+              <hr />
+              <div class="account-management-btn">帳號</div>
+              <div class="log-out-btn">登出</div>
+            </div>
+            <div id="notification-list"></div>
+          </div>
+          <button id="show-menu-btn">
+            <i class="fa-solid fa-bars"></i>
+            <i class="fa-solid fa-user"></i>
+          </button>
+        </div>
+      </div>
+    </header>
+    <section id="hero">
+      <h3>
+        explore local volunteer work <br />in exchange for accommodation, food
+        and experience
+      </h3>
+      <h5>
+        換煥提供多條件篩選、訂閱與推薦服務 <br />
+        註冊帳戶開始管理收藏清單、發送邀請訊息
+      </h5>
+      <!-- <button id="sign-up-btn">立即註冊</button> -->
+    </section>
+    <section id="popular-opportunity"></section>
+
+    <section id="explore-button">
+      <button>探索機會</button>
+      <button>探索幫手</button>
+    </section>
+    <dialog id="add-host-role-dialog">
+      <form action="">
+        <label for="">請填寫店家名稱</label>
+        <input type="text" name="" id="" />
+        <button>切換為店家身份</button>
+      </form>
+    </dialog>
+    <dialog id="add-helper-role-dialog">
+      <form action="">
+        <label for="">請填寫姓名</label>
+        <input type="text" name="" id="" />
+        <button>切換為幫手身份</button>
+      </form>
+    </dialog>
+    <dialog id="sign-up-dialog">
+      <p>註冊</p>
+      <hr />
+      <form id="sign-up-form">
+        <input type="email" id="sign-up-email" placeholder="電子郵件" />
+        <input type="password" id="sign-up-passsword" placeholder="密碼" />
+        <input type="text" id="sign-up-username" placeholder="用戶名" />
+        <input type="text" id="sign-up-realname" placeholder="您的真實姓名" />
+        <label>選擇一個身份開始體驗平台</label>
+        <div id="sign-up-role-div">
+          <button
+            class="sign-up-role selected"
+            data-value="HELPER"
+            type="button"
+          >
+            幫手
+          </button>
+          <button class="sign-up-role" data-value="HOST" type="button">
+            店家
+          </button>
+        </div>
+        <button class="sign-up-submit-btn" type="submit">註冊</button>
+        <!-- <p>或</p>
+          <a href="">使用 Google 繼續</a> -->
+        <p id="sign-up-response-message"></p>
+      </form>
+    </dialog>
+    <dialog id="sign-in-dialog">
+      <p>登入</p>
+      <hr />
+      <form id="sign-in-form">
+        <input
+          type="email"
+          id="sign-in-email"
+          placeholder="請輸入電子郵件地址"
+        />
+        <input type="password" id="sign-in-password" placeholder="請輸入密碼" />
+        <label>選擇登入身份</label>
+        <div id="sign-in-role-div">
+          <button
+            class="sign-in-role selected"
+            data-value="HELPER"
+            type="button"
+          >
+            幫手
+          </button>
+          <button class="sign-in-role" data-value="HOST" type="button">
+            店家
+          </button>
+        </div>
+        <button class="sign-in-submit-btn">登入</button>
+        <!-- <p>或</p>
+          <a href="">使用 Google 繼續</a> -->
+        <p id="sign-in-response-message"></p>
+      </form>
+    </dialog>
+  </body>
+</html>

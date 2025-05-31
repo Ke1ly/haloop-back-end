@@ -1,0 +1,249 @@
+body > nav {
+  max-width: 1200px;
+  margin: 40px auto;
+  display: flex;
+  div {
+    margin: 0px 10px;
+    cursor: pointer;
+  }
+}
+body > main {
+  max-width: 1200px;
+  margin: 0px auto;
+  padding: 10px;
+}
+body > nav {
+  div {
+    padding: 10px 10px;
+    border-radius: 10px;
+    border: 1px solid rgb(151, 151, 151);
+    color: rgb(151, 151, 151);
+    &:hover {
+      border: 1px solid #000000;
+      color: #000000;
+    }
+  }
+  div.selected {
+    border: 1px solid #000000;
+    color: #000000;
+    background-color: #eeeeee;
+  }
+}
+
+body > main > section#user-profile-section {
+  display: none;
+  /* display: flex; */
+  flex-direction: column;
+  justify-content: space-between;
+  form {
+    label {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    input,
+    select,
+    textarea {
+      margin-top: 5px;
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #cccccc;
+      border-radius: 10px;
+      outline: #000000;
+      &:focus {
+        border: 1.5px solid #000000;
+      }
+    }
+    textarea {
+      height: 150px;
+      resize: none;
+    }
+    button.toggle-option,
+    button.radio-option {
+      margin: 5px 0px;
+      padding: 8px 15px;
+      border: 1px solid #cccccc;
+      border-radius: 20px;
+      background-color: white;
+      cursor: pointer;
+    }
+    button.toggle-option.selected,
+    button.radio-option.selected {
+      background-color: #eaeaea;
+      border: 1px solid #000000;
+    }
+  }
+  div#basic-profile-top-form-wrap,
+  div#basic-profile-bottom-form-wrap {
+    display: flex;
+    flex-direction: column;
+  }
+  div#save-userform-data-btn-div {
+    padding: 15px 5px;
+    display: flex;
+    flex-direction: row;
+    justify-content: end;
+    button#save-userform-data-btn {
+      border: none;
+      background-color: rgb(55, 55, 55);
+      color: white;
+      padding: 15px 30px;
+      border-radius: 15px;
+      cursor: pointer;
+      margin-top: 10px;
+      cursor: pointer;
+      &:hover {
+        background-color: black;
+        box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
+      }
+    }
+  }
+  /* border: 3px solid darkblue; */
+}
+
+body > main > section#helper-profile-section {
+  display: none;
+  border: 3px solid darkblue;
+}
+
+body > main > section#host-profile-section {
+  display: none;
+  /* display: flex; */
+  flex-direction: column;
+  justify-content: space-between;
+  form {
+    label {
+      font-weight: 500;
+      font-size: 14px;
+    }
+    input,
+    select,
+    textarea {
+      margin-top: 5px;
+      margin-bottom: 10px;
+      padding: 10px;
+      border: 1px solid #cccccc;
+      border-radius: 10px;
+      outline: #000000;
+      &:focus {
+        border: 1.5px solid #000000;
+      }
+    }
+    textarea {
+      height: 150px;
+      resize: none;
+    }
+    button.toggle-option,
+    button.radio-option {
+      margin: 5px 0px;
+      padding: 8px 15px;
+      border: 1px solid #cccccc;
+      border-radius: 20px;
+      background-color: white;
+      cursor: pointer;
+    }
+    button.toggle-option.selected,
+    button.radio-option.selected {
+      background-color: #eaeaea;
+      border: 1px solid #000000;
+    }
+    /* button.save-form-data {
+      padding: 8px 15px;
+      border: none;
+      border-radius: 20px;
+      background-color: rgb(231, 231, 231);
+      cursor: pointer;
+    } */
+  }
+  div#post-work-btn-div {
+    padding: 15px 5px;
+    display: flex;
+    flex-direction: row;
+    justify-content: end;
+    button#post-work-btn {
+      border: none;
+      background-color: rgb(55, 55, 55);
+      color: white;
+      padding: 15px 30px;
+      border-radius: 15px;
+      cursor: pointer;
+      margin-top: 10px;
+      cursor: pointer;
+      &:hover {
+        background-color: black;
+        box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.3);
+      }
+    }
+  }
+}
+
+body > main > section#host-profile-section > section#host-profile-top {
+  margin-bottom: 20px;
+  div#host-profile-top-wrap {
+    position: relative;
+    /* border: 1px solid mediumaquamarine; */
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+    border-radius: 20px;
+    padding: 0px 10px;
+    form#host-profile-general {
+      display: flex;
+      flex-direction: row;
+      flex-wrap: wrap;
+      div#host-profile-top-left,
+      div#host-profile-top-middle,
+      div#host-profile-top-right {
+        padding: 20px 20px;
+        flex-basis: 200px;
+        flex-grow: 1;
+        /* border: 1px solid rebeccapurple; */
+        display: flex;
+        flex-direction: column;
+        flex-wrap: wrap;
+      }
+      button {
+        margin: 20px;
+        position: absolute;
+        bottom: 0px;
+        right: 0px;
+      }
+    }
+  }
+}
+
+body > main > section#host-profile-section > section#host-profile-bottom {
+  margin-top: 20px;
+  display: flex;
+  flex-direction: row;
+  flex-wrap: wrap;
+  div#host-profile-bottom-left-wrap,
+  div#host-profile-bottom-right-wrap {
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.2);
+    border-radius: 20px;
+    padding: 0px 10px;
+    flex-basis: 200px;
+    flex-grow: 1;
+    padding: 20px 20px;
+    h5 {
+      font-size: 24px;
+      font-weight: 500;
+      margin-bottom: 10px;
+    }
+  }
+  div#host-profile-bottom-left-wrap {
+    margin-right: 20px;
+  }
+  div#host-profile-bottom-right-wrap {
+    margin-left: 20px;
+  }
+  form#host-profile-need,
+  form#host-profile-offer {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: wrap;
+    /* border: 1px solid rebeccapurple; */
+
+    div {
+      margin-top: 5px;
+      margin-bottom: 10px;
+    }
+  }
+}
