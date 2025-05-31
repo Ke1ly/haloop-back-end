@@ -1,0 +1,207 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+  binaryTargets = ["native", "linux-musl-arm64-openssl-3.0.x"]
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+model WorkPost {
+  id                  String             @id @default(cuid())
+  unitId              String
+  unit                HostProfile        @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  startDate           DateTime
+  endDate             DateTime
+  recruitCount        Int
+  images              WorkPostImage[]
+  positionName        String
+  positionCategories  PositionCategory[] @relation("WorkPostPositionCategories")
+  averageWorkHours    Int
+  minDuration         Int
+  requirements        Requirement[]      @relation("WorkPostPositionRequirements")
+  positionDescription String
+  accommodations      Accommodation[]    @relation("WorkPostPositionAccommodations")
+  meals               Meal[]             @relation("WorkPostPositionMeals")
+  experiences         Experience[]       @relation("WorkPostPositionExperiences")
+  environments        Environment[]      @relation("WorkPostPositionEnvironments")
+  benefitsDescription String
+  favoriteBy          Favorite[]
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@map("work_posts")
+}
+
+model WorkPostImage {
+  id         String   @id @default(cuid())
+  workPostId String
+  workPost   WorkPost @relation(fields: [workPostId], references: [id], onDelete: Cascade)
+
+  imageUrl    String
+  description String?
+  order       Int     @default(0)
+
+  @@map("work_post_images")
+}
+
+model Experience {
+  id                  Int                  @id @default(autoincrement())
+  name                String               @unique
+  workPosts           WorkPost[]           @relation("WorkPostPositionExperiences")
+  FilterSubscriptions FilterSubscription[] @relation("FilterSubscriptionExperiences")
+
+  @@map("experience_options")
+}
+
+model Environment {
+  id                  Int                  @id @default(autoincrement())
+  name                String               @unique
+  workPosts           WorkPost[]           @relation("WorkPostPositionEnvironments")
+  FilterSubscriptions FilterSubscription[] @relation("FilterSubscriptionEnvironments")
+
+  @@map("environment_options")
+}
+
+model Accommodation {
+  id                  Int                  @id @default(autoincrement())
+  name                String               @unique
+  workPosts           WorkPost[]           @relation("WorkPostPositionAccommodations")
+  FilterSubscriptions FilterSubscription[] @relation("FilterSubscriptionAccommodations")
+
+  @@map("accommodation_options")
+}
+
+model Meal {
+  id                  Int                  @id @default(autoincrement())
+  name                String               @unique
+  workPosts           WorkPost[]           @relation("WorkPostPositionMeals")
+  FilterSubscriptions FilterSubscription[] @relation("FilterSubscriptionMeals")
+
+  @@map("meal_options")
+}
+
+model Requirement {
+  id        Int        @id @default(autoincrement())
+  name      String     @unique
+  workPosts WorkPost[] @relation("WorkPostPositionRequirements")
+
+  @@map("requirement_options")
+}
+
+model PositionCategory {
+  id                  Int                  @id @default(autoincrement())
+  name                String               @unique
+  workPosts           WorkPost[]           @relation("WorkPostPositionCategories")
+  FilterSubscriptions FilterSubscription[] @relation("FilterSubscriptionPositionCategories")
+
+  @@map("position_categories")
+}
+
+model User {
+  id            String         @id @default(cuid())
+  email         String         @unique
+  password      String
+  realname      String
+  username      String         @unique
+  phone         String?        @unique
+  avatar        String?
+  userType      UserType       @default(HELPER)
+  isVerified    Boolean        @default(false)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  lastLoginAt   DateTime?
+  hostProfile   HostProfile?
+  helperProfile HelperProfile?
+  @@map("users")
+}
+
+enum UserType {
+  HOST
+  HELPER
+}
+
+model HostProfile {
+  id              String     @id @default(cuid())
+  userId          String     @unique
+  user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unitName        String
+  unitDescription String?
+  address         String
+  city            String
+  district        String?
+  latitude        Float?
+  longitude       Float?
+  workPosts       WorkPost[]
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  @@map("host_profiles")
+}
+
+model HelperProfile {
+  id           String               @id @default(cuid())
+  userId       String               @unique
+  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio          String?
+  birthDate    DateTime?
+  gender       Gender?
+  favorites    Favorite[]
+  subcriptions FilterSubscription[]
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@map("helper_profiles")
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+model Favorite {
+  id              String        @id @default(cuid())
+  helperProfileId String
+  workPostId      String
+  helperProfile   HelperProfile @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
+  workPost        WorkPost      @relation(fields: [workPostId], references: [id], onDelete: Cascade)
+  createdAt       DateTime      @default(now())
+
+  @@unique([helperProfileId, workPostId])
+  @@map("favorites")
+}
+
+model FilterSubscription {
+  id                 String             @id @default(cuid())
+  helperProfileId    String
+  helperProfile      HelperProfile      @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
+  name               String // 訂閱名稱
+  city               String?
+  startDate          DateTime?
+  endDate            DateTime?
+  applicantCount     Int?
+  averageWorkHours   Int?
+  minDuration            Int?
+  filters            Json // 篩選條件 JSON
+  positionCategories PositionCategory[] @relation("FilterSubscriptionPositionCategories")
+  accommodations     Accommodation[]    @relation("FilterSubscriptionAccommodations")
+  meals              Meal[]             @relation("FilterSubscriptionMeals")
+  experiences        Experience[]       @relation("FilterSubscriptionExperiences")
+  environments       Environment[]      @relation("FilterSubscriptionEnvironments")
+  isActive           Boolean            @default(true)
+  notifyEmail        Boolean            @default(true)
+  notifyPush         Boolean            @default(true)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@map("filter_subscriptions")
+}
