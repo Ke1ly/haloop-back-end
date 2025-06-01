@@ -24,7 +24,7 @@ const port = 3000;
 app.use(express.json());
 app.use(
   cors({
-    origin: ["https://9e275b52.haloopf.pages.dev", "http://localhost:3000"],
+    origin: ["https://haloopf.pages.dev", "http://localhost:3000"],
     credentials: true,
   })
 );
