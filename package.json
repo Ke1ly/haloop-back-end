@@ -4,11 +4,13 @@
   "description": "",
   "main": "dist/server.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && prisma migrate deploy",
     "dev": "ts-node-dev src/server.ts",
     "start": "node dist/server.js",
     "postinstall": "prisma generate",
-    "db:migrate": "prisma migrate deploy"
+    "db:migrate": "prisma migrate deploy",
+    "db:reset": "prisma migrate reset",
+    "db:seed": "prisma db seed"
   },
   "keywords": [],
   "author": "",
