@@ -6,7 +6,9 @@
   "scripts": {
     "build": "tsc",
     "dev": "ts-node-dev src/server.ts",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "postinstall": "prisma generate",
+    "db:migrate": "prisma migrate deploy"
   },
   "keywords": [],
   "author": "",
