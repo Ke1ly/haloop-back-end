@@ -1,14 +1,72 @@
-Dockerfile
-requirements.txt
-node_modules
+# Node.js 依賴套件
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+logs
+*.log
 
-# Byte-compiled / optimized / DLL files
-__pycache__/
-*.py[cod]
-*$py.class
-
-# C extensions
+# 建置輸出
+dist/
+build/
+out/
+target/
+bin/
+obj/
+*.exe
+*.dll
 *.so
+*.dylib
+
+# Yarn
+.yarn-integrity
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+
+# npm
+.npm
+.eslintcache
+
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+requirements.txt
+
+# Prisma
+# Prisma generated client (通常不需要提交)
+prisma/generated/
+
+# Prisma migration lock file (team 開發時可考慮提交)
+# prisma/migrations/migration_lock.toml
+
+# Prisma 產生的 schema backup
+prisma/schema.prisma.bak
+
+
+# Prisma Studio 暫存
+.prisma/# 系統檔案
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
 
 # Distribution / packaging
 .Python
@@ -69,44 +127,8 @@ instance/
 docs_build
 docs.zip
 
-# Scrapy stuff:
-.scrapy
-
 # Sphinx documentation
 docs/_build/
-
-# PyBuilder
-.pybuilder/
-target/
-
-# Jupyter Notebook
-.ipynb_checkpoints
-
-# IPython
-profile_default/
-ipython_config.py
-
-# pyenv
-#   For a library or package, you might want to ignore these files since the code is
-#   intended to run in multiple environments; otherwise, check them in:
-# .python-version
-
-# pipenv
-#   According to pypa/pipenv#598, it is recommended to include Pipfile.lock in version control.
-#   However, in case of collaboration, if having platform-specific dependencies or dependencies
-#   having no cross-platform support, pipenv may install dependencies that don't work, or not
-#   install all needed dependencies.
-#Pipfile.lock
-
-# PEP 582; used by e.g. github.com/David-OConnor/pyflow
-__pypackages__/
-
-# Celery stuff
-celerybeat-schedule
-celerybeat.pid
-
-# SageMath parsed files
-*.sage.py
 
 # Environments
 .env
@@ -142,4 +164,4 @@ dmypy.json
 cython_debug/
 
 # macOS
-.DS_Store
+.DS_Store.env

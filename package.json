@@ -1,38 +1,42 @@
 {
-  "name": "haloop",
+  "name": "server",
   "version": "1.0.0",
-  "main": "server.js",
+  "description": "",
+  "main": "dist/server.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node server.js",
-    "dev": "concurrently \"npm run dev --prefix vite\" \"npm run dev --prefix server\""
+    "build": "tsc",
+    "dev": "ts-node-dev src/server.ts",
+    "start": "node dist/server.js"
   },
+  "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "type": "commonjs",
   "dependencies": {
     "@prisma/client": "^6.8.2",
-    "@types/multer": "^1.4.12",
     "aws-sdk": "^2.1692.0",
+    "bcryptjs": "^2.4.3",
     "cors": "^2.8.5",
-    "dotenv": "^16.5.0",
+    "dotenv": "^16.3.1",
     "express": "^5.1.0",
-    "flatpickr": "^4.6.13",
-    "litepicker": "^2.0.12",
-    "multer": "^1.4.5-lts.2",
-    "mysql2": "^3.14.1"
+    "express-rate-limit": "^6.8.1",
+    "express-validator": "^7.0.1",
+    "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "multer": "^2.0.0",
+    "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "@types/aws-sdk": "^0.0.42",
+    "@types/bcryptjs": "^2.4.2",
     "@types/cors": "^2.8.18",
-    "@types/express": "^5.0.1",
-    "@types/node": "^22.15.18",
+    "@types/express": "^5.0.2",
+    "@types/jsonwebtoken": "^9.0.9",
+    "@types/multer": "^1.4.12",
+    "@types/node": "^22.15.21",
     "@types/uuid": "^10.0.0",
-    "concurrently": "^9.1.2",
-    "nodemon": "^3.1.10",
     "prisma": "^6.8.2",
-    "ts-node": "^10.9.2",
     "ts-node-dev": "^2.0.0",
-    "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
 }

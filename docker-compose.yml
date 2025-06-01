@@ -1,4 +1,20 @@
 services:
+  server:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: backend
+    depends_on:
+      - mysql
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - ./server/.env
+    volumes:
+      - ./server:/app/server
+      - ./vite:/app/vite
+
   mysql:
     image: mysql:8.4.0
     container_name: mysql
@@ -10,37 +26,6 @@ services:
       - "3307:3306"
     volumes:
       - mysql_data:/var/lib/mysql
-
-  server:
-    build:
-      context: ./server
-      dockerfile: Dockerfile
-    container_name: backend
-    depends_on:
-      - mysql
-    restart: always
-    ports:
-      - "3000:3000"
-    env_file:
-      - ./server/.env
-    volumes:
-      - ./server:/app/server
-      - ./vite:/app/vite
-
-  vite:
-    build:
-      context: ./vite
-      dockerfile: Dockerfile
-    container_name: frontend
-    ports:
-      - "5173:5173"
-    volumes:
-      - ./vite:/app
-      - /app/node_modules
-    working_dir: /app
-    command: npm run dev
-    environment:
-      - NODE_ENV=development
 
 volumes:
   mysql_data:
