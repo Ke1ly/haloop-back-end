@@ -1,0 +1,54 @@
+# Node.js
+node_modules/
+dist
+*.tsbuildinfo # 若開啟 TypeScript 的 incremental 編譯，會產生這個檔案
+*.tmp
+*.swp
+npm-debug.log*
+
+# Env files
+.env
+.env*
+!.env.example 
+
+# Git
+.git
+.gitignore
+.gitattributes
+# GitHub Actions
+.github/
+
+
+# IDEs / Editors
+.vscode/
+.idea/
+*.log
+
+# logs
+logs
+*.log
+
+# 測試覆蓋率報告
+coverage
+
+# Docker
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Docs
+README.md
+docs/
+*.md
+
+# OS / Editor files
+*.swp
+*.DS_Store
+Thumbs.db
+
+# 不需要的資料夾
+nginx/
+scripts/
+certs/
+data/
+logs/

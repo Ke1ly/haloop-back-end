@@ -1,0 +1,25 @@
+services:
+  backend:
+    image: ${DOCKER_IMAGE}
+    platform: linux/amd64
+    container_name: haloop-backend
+    ports:
+      - "3000:3000"
+    environment:
+      - VIRTUAL_HOST=${VIRTUAL_HOST}
+      - LETSENCRYPT_HOST=${LETSENCRYPT_HOST}
+      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
+    env_file:
+      - .env.production
+    restart: unless-stopped
+    networks:
+      - webproxy
+    volumes:
+      - app-logs:/app/logs
+
+networks:
+  webproxy:
+    external: true
+
+volumes:
+  app-logs:
