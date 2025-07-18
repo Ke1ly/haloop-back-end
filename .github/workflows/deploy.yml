@@ -46,24 +46,24 @@ jobs:
       - name: Create .env.production file
         run: |
           cat > .env.production << EOF
-          NODE_ENV=production
-          PORT=${{ secrets.PORT }}
-          CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
-          REDIS_HOST=${{ secrets.REDIS_HOST }}
-          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          OPENCAGE_API_KEY=${{ secrets.OPENCAGE_API_KEY }}
-          VIRTUAL_HOST=${{ secrets.VIRTUAL_HOST }}
-          LETSENCRYPT_HOST=${{ secrets.LETSENCRYPT_HOST }}
-          LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
-          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION=${{ secrets.AWS_REGION }}
-          S3_BUCKET=${{ secrets.S3_BUCKET }}
-          CLOUDFRONT_URL=${{ secrets.CLOUDFRONT_URL }}
-          DOCKER_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.DOCKER_TAG }}
-          EOF
+NODE_ENV=production
+PORT=${{ secrets.PORT }}
+CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}
+DATABASE_URL=${{ secrets.DATABASE_URL }}
+REDIS_HOST=${{ secrets.REDIS_HOST }}
+REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
+JWT_SECRET=${{ secrets.JWT_SECRET }}
+OPENCAGE_API_KEY=${{ secrets.OPENCAGE_API_KEY }}
+VIRTUAL_HOST=${{ secrets.VIRTUAL_HOST }}
+LETSENCRYPT_HOST=${{ secrets.LETSENCRYPT_HOST }}
+LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
+AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
+AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
+AWS_REGION=${{ secrets.AWS_REGION }}
+S3_BUCKET=${{ secrets.S3_BUCKET }}
+CLOUDFRONT_URL=${{ secrets.CLOUDFRONT_URL }}
+DOCKER_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.DOCKER_TAG }}
+EOF
 
       - name: Copy files to EC2
         uses: appleboy/scp-action@v0.1.4
@@ -91,9 +91,9 @@ jobs:
               echo "Infrastructure services are running"
             fi
 
-            echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-            docker-compose down
-            docker-compose pull
-            docker-compose up -d
-            docker image prune -f
+            echo "${{ secrets.DOCKER_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+            sudo docker-compose down
+            sudo docker-compose pull
+            sudo docker-compose up -d
+            sudo docker image prune -f
             echo "Deployment completed successfully"
