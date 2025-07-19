@@ -83,7 +83,9 @@ jobs:
           script: |
             cd ${{ secrets.EC2_PROJECT_PATH }}
 
-            if ! docker ps | grep -q nginx-proxy || ! docker ps | grep -q acme-companion; then
+            sudo docker network create webproxy || true 
+
+            if ! sudo docker ps | grep -q nginx-proxy || ! sudo docker ps | grep -q acme-companion; then
               echo "Infrastructure services not running, setting up..."
               chmod +x setup-infrastructure.sh
               ./setup-infrastructure.sh
@@ -92,8 +94,8 @@ jobs:
             fi
 
             echo "${{ secrets.DOCKER_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
-            sudo docker-compose down
+            sudo docker-compose down --remove-orphans
             sudo docker-compose pull
-            sudo docker-compose up -d
+            sudo docker-compose --env-file .env.production up -d
             sudo docker image prune -f
             echo "Deployment completed successfully"
