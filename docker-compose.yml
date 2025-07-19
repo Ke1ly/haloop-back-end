@@ -5,10 +5,6 @@ services:
     container_name: haloop-backend
     ports:
       - "3000:3000"
-    environment:
-      - VIRTUAL_HOST=${VIRTUAL_HOST}
-      - LETSENCRYPT_HOST=${LETSENCRYPT_HOST}
-      - LETSENCRYPT_EMAIL=${LETSENCRYPT_EMAIL}
     env_file:
       - .env.production
     restart: unless-stopped
