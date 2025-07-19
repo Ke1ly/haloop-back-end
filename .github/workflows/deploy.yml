@@ -7,6 +7,9 @@ on:
     workflow_dispatch:
 env:
   DOCKER_TAG: ${{ github.sha }}
+  VIRTUAL_HOST: ${{ secrets.VIRTUAL_HOST }}
+  LETSENCRYPT_HOST: ${{ secrets.LETSENCRYPT_HOST }}
+  LETSENCRYPT_EMAIL: ${{ secrets.LETSENCRYPT_EMAIL }}
 
 jobs:
   build-and-push:
@@ -62,7 +65,7 @@ jobs:
           AWS_REGION=${{ secrets.AWS_REGION }}
           S3_BUCKET=${{ secrets.S3_BUCKET }}
           CLOUDFRONT_URL=${{ secrets.CLOUDFRONT_URL }}
-          DOCKER_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ env.DOCKER_IMAGE_NAME }}:${{ env.DOCKER_TAG }}
+          DOCKER_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ env.DOCKER_TAG }}
           EOF
 
       - name: Copy files to EC2
