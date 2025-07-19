@@ -13,12 +13,12 @@ services:
       - .env.production
     restart: unless-stopped
     networks:
-      - webproxy
+      - nginx-proxy
     volumes:
       - app-logs:/app/logs
 
 networks:
-  webproxy:
+  nginx-proxy:
     external: true
 
 volumes:

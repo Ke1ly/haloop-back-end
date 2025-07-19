@@ -86,7 +86,7 @@ jobs:
           script: |
             cd ${{ secrets.EC2_PROJECT_PATH }}
 
-            sudo docker network create webproxy || true 
+            sudo docker network create nginx-proxy 2>/dev/null || true 
 
             if ! sudo docker ps | grep -q nginx-proxy || ! sudo docker ps | grep -q acme-companion; then
               echo "Infrastructure services not running, setting up..."
