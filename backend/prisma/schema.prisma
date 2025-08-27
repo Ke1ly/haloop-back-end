@@ -34,8 +34,9 @@ model WorkPost {
   environments        Environment[]      @relation("WorkPostPositionEnvironments")
   benefitsDescription String
   favoriteBy          Favorite[]
-    availabilities Availability[]  
-    application Application[]
+  availabilities      Availability[]
+  application         Application[]
+  matchedSubscriptions MatchedWorkPost[]
   isActive            Boolean            @default(true)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
@@ -43,13 +44,13 @@ model WorkPost {
   @@map("work_posts")
 }
 
-model Availability{
-  id             String       @id @default(cuid())
-  workPostId     String
-  date           DateTime 
-  maxRecruitCount       Int     
-  remainingRecruitCount    Int    
-  workPost       WorkPost  @relation(fields: [workPostId], references: [id])
+model Availability {
+  id                    String   @id @default(cuid())
+  workPostId            String
+  date                  DateTime
+  maxRecruitCount       Int
+  remainingRecruitCount Int
+  workPost              WorkPost @relation(fields: [workPostId], references: [id])
 }
 
 model WorkPostImage {
@@ -147,10 +148,10 @@ model HostProfile {
   id              String     @id @default(cuid())
   userId          String     @unique
   user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  unitName        String
+  unitName        String?
   unitDescription String?
-  address         String
-  city            String
+  address         String?
+  city            String?
   district        String?
   latitude        Float?
   longitude       Float?
@@ -162,19 +163,38 @@ model HostProfile {
 }
 
 model HelperProfile {
-  id           String               @id @default(cuid())
-  userId       String               @unique
-  user         User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bio          String?
-  birthDate    DateTime?
-  gender       Gender?
-  favorites    Favorite[]
-  subcriptions FilterSubscription[]
-  applications Application[]
-  createdAt    DateTime             @default(now())
-  updatedAt    DateTime             @updatedAt
+  id            String               @id @default(cuid())
+  userId        String               @unique
+  user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bio           String?
+  birthDate     DateTime?
+  gender        Gender?
+  favorites     Favorite[]
+  subcriptions  FilterSubscription[]
+  notifications Notification[]
+  applications  Application[]
+  createdAt     DateTime             @default(now())
+  updatedAt     DateTime             @updatedAt
 
   @@map("helper_profiles")
+}
+
+model Notification {
+  id              String @id @default(cuid())
+  helperProfileId String
+
+  title   String
+  message String
+  data    Json?
+
+  isRead    Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  helperProfile HelperProfile? @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
+
+  @@index([helperProfileId, createdAt]) // 複合索引：按幫手和時間查詢
+  @@index([helperProfileId, isRead]) // 複合索引：按幫手和已讀狀態查詢
+  @@map("notifications")
 }
 
 enum Gender {
@@ -194,17 +214,19 @@ model Favorite {
   @@unique([helperProfileId, workPostId])
   @@map("favorites")
 }
-model Application {
-  id         String       @id @default(cuid())
-  helperProfileId String
-  workPostId String
-  startDate  DateTime
-  endDate    DateTime
-  createdAt  DateTime  @default(now())
 
-  workPost   WorkPost  @relation(fields: [workPostId], references: [id])
-  helperProfile   HelperProfile @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
-    @@unique([helperProfileId, workPostId])
+model Application {
+  id              String   @id @default(cuid())
+  helperProfileId String
+  workPostId      String
+  startDate       DateTime
+  endDate         DateTime
+  createdAt       DateTime @default(now())
+
+  workPost      WorkPost      @relation(fields: [workPostId], references: [id])
+  helperProfile HelperProfile @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
+
+  @@unique([helperProfileId, workPostId])
   @@map("applications")
 }
 
@@ -212,33 +234,47 @@ model FilterSubscription {
   id                 String             @id @default(cuid())
   helperProfileId    String
   helperProfile      HelperProfile      @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
-  name               String 
+  name               String
   city               String?
   startDate          DateTime?
   endDate            DateTime?
   applicantCount     Int?
   averageWorkHours   Int?
   minDuration        Int?
-  filters            Json 
+  filters            Json
   positionCategories PositionCategory[] @relation("FilterSubscriptionPositionCategories")
   accommodations     Accommodation[]    @relation("FilterSubscriptionAccommodations")
   meals              Meal[]             @relation("FilterSubscriptionMeals")
   experiences        Experience[]       @relation("FilterSubscriptionExperiences")
   environments       Environment[]      @relation("FilterSubscriptionEnvironments")
+  matchedWorkPosts     MatchedWorkPost[]
   isActive           Boolean            @default(true)
   notifyEmail        Boolean            @default(true)
   notifyPush         Boolean            @default(true)
   createdAt          DateTime           @default(now())
   updatedAt          DateTime           @updatedAt
-
   @@map("filter_subscriptions")
+}
+model MatchedWorkPost {
+  id                     String              @id @default(cuid())
+  workPostId             String
+  filterSubscriptionId   String
+  matchedAt              DateTime            @default(now())  // 匹配時間，用於排序
+  isNotified             Boolean             @default(true)   // 是否已發送通知（可擴展）
+
+  workPost               WorkPost            @relation(fields: [workPostId], references: [id], onDelete: Cascade)
+  filterSubscription     FilterSubscription  @relation(fields: [filterSubscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([workPostId, filterSubscriptionId])  // 避免重複
+  @@index([filterSubscriptionId, matchedAt])    // 索引：按 Filter 和時間查詢匹配貼文
+  @@map("matched_work_posts")
 }
 
 model Conversation {
-  id            String    @id @default(cuid())
+  id            String           @id @default(cuid())
   type          ConversationType @default(DIRECT) // 之後視情況啟用群組聊天
   lastMessageAt DateTime?
-  createdAt     DateTime  @default(now())
+  createdAt     DateTime         @default(now())
   // updatedAt     DateTime  @updatedAt //若之後啟用群組聊天，作為成員更新設定的紀錄
 
   participants ConversationParticipant[]
@@ -252,9 +288,9 @@ model ConversationParticipant {
   conversationId  String
   userId          String
   participantRole UserType
-  joinedAt       DateTime  @default(now())
-  leftAt         DateTime?
-  lastReadAt      DateTime? 
+  joinedAt        DateTime  @default(now())
+  leftAt          DateTime?
+  lastReadAt      DateTime?
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -264,16 +300,14 @@ model ConversationParticipant {
 }
 
 model Message {
-  id             String   @id @default(cuid())
+  id             String      @id @default(cuid())
   conversationId String
   senderId       String
   content        String
   messageType    MessageType @default(TEXT)
-  attachments    Json?       
-  // isEdited       Boolean     @default(false)
-  // editedAt       DateTime?
-  createdAt      DateTime @default(now())
-  // updatedAt      DateTime    @updatedAt
+  attachments    Json?
+  isRead         Boolean     @default(false)
+  createdAt      DateTime    @default(now())
 
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
@@ -282,13 +316,13 @@ model Message {
 }
 
 enum ConversationType {
-  DIRECT   
-  GROUP     
+  DIRECT
+  GROUP
 }
 
 enum MessageType {
-  TEXT      
-  IMAGE    
-  FILE      
-  SYSTEM    
+  TEXT
+  IMAGE
+  FILE
+  SYSTEM
 }

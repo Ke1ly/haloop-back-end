@@ -15,7 +15,7 @@ router.post(
   authorizeRole("HELPER"),
   async (req: AuthenticatedRequest, res: Response) => {
     const {
-      // name,
+      name,
       city,
       startDate,
       endDate,
@@ -46,7 +46,7 @@ router.post(
     }
 
     const data: any = {
-      name: "我的訂閱", //之後從前端拿資料
+      name: null,
       helperProfileId: helperProfile.id,
       city: null,
       startDate: null,
@@ -74,6 +74,11 @@ router.post(
       },
     };
 
+    if (name) {
+      data.name = name;
+    } else {
+      data.name = "未命名的訂閱";
+    }
     if (city) data.city = city;
 
     if (startDate) {
@@ -149,6 +154,38 @@ router.post(
 );
 
 router.get(
+  "/",
+  authorizeRole("HELPER"),
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) {
+      return void res
+        .status(401)
+        .json({ success: false, message: "無法取得使用者資訊" });
+    }
+
+    // 查詢該 user 對應的 helperProfile
+    const helperProfile = await prisma.helperProfile.findUnique({
+      where: { userId: userId },
+    });
+
+    if (!helperProfile) {
+      return void res.status(404).json({ message: "Helper profile not found" });
+    }
+    const helperProfileId = helperProfile.id;
+
+    const subscriptions = await prisma.filterSubscription.findMany({
+      where: {
+        helperProfileId: helperProfileId,
+      },
+      select: { id: true, name: true, filters: true },
+    });
+
+    res.status(200).json({ subscriptions });
+  }
+);
+
+router.get(
   "/recommendations",
   authorizeRole("HELPER"),
   async (req: AuthenticatedRequest, res: Response) => {
@@ -171,7 +208,7 @@ router.get(
 
     //查詢 redis 中推薦貼文 Id
     const key = `recommended:userId:${helperProfileId}`;
-    const postIds = await redis.smembers(key);
+    const postIds = await redis.zrevrange(key, 0, 4); // 取最新 5 筆
 
     //查詢推薦貼文資料
     const rawWorkPosts = await prisma.workPost.findMany({
@@ -222,6 +259,68 @@ router.get(
     }
 
     res.status(200).json({ formattedWorkPosts });
+  }
+);
+
+router.get(
+  "/:subscriptionId/matched-posts",
+  authorizeRole("HELPER"),
+  async (req: AuthenticatedRequest, res: Response) => {
+    const userId = req.user?.userId;
+    if (!userId) return res.status(401).json({ message: "Unauthorized" });
+
+    const subscriptionId = req.params.subscriptionId;
+
+    // 驗證該 FilterSubscription 屬於當前使用者
+    const subscription = await prisma.filterSubscription.findUnique({
+      where: { id: subscriptionId },
+      include: { helperProfile: { select: { userId: true } } },
+    });
+    if (!subscription || subscription.helperProfile.userId !== userId) {
+      return res
+        .status(404)
+        .json({ message: "Subscription not found or unauthorized" });
+    }
+
+    // 查詢匹配貼文（按匹配時間降序）
+    const matchedPosts = await prisma.matchedWorkPost.findMany({
+      where: { filterSubscriptionId: subscriptionId },
+      include: {
+        workPost: {
+          select: {
+            id: true,
+            positionName: true,
+            averageWorkHours: true,
+            minDuration: true,
+            positionCategories: { select: { name: true } },
+            meals: { select: { name: true } },
+            experiences: { select: { name: true } },
+            environments: { select: { name: true } },
+            accommodations: { select: { name: true } },
+            images: {
+              select: {
+                imageUrl: true,
+              },
+            },
+            unit: {
+              select: {
+                id: true,
+                userId: true,
+                city: true,
+                unitName: true,
+                latitude: true,
+                longitude: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { matchedAt: "desc" },
+    });
+
+    res
+      .status(200)
+      .json({ matchedPosts: matchedPosts.map((match) => match.workPost) });
   }
 );
 

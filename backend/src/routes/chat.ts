@@ -66,94 +66,118 @@ router.post(
   }
 );
 
-router.get("/conversations/:userId", async (req, res) => {
-  try {
-    const { userId } = req.params;
+router.get(
+  "/conversations/:userId",
+  authorizeRole(),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { userId } = req.params;
 
-    const conversations = await prisma.conversationParticipant.findMany({
-      where: {
-        userId,
-      },
-      include: {
-        conversation: {
-          include: {
-            participants: {
-              where: {
-                userId: { not: userId },
-              },
-              include: {
-                user: {
-                  select: {
-                    id: true,
-                    username: true,
-                    avatar: true,
+      const conversations = await prisma.conversationParticipant.findMany({
+        where: {
+          userId,
+        },
+        include: {
+          conversation: {
+            include: {
+              participants: {
+                where: {
+                  userId: { not: userId },
+                },
+                include: {
+                  user: {
+                    select: {
+                      id: true,
+                      username: true,
+                      avatar: true,
+                    },
                   },
                 },
               },
-            },
-            messages: {
-              take: 1,
-              orderBy: { createdAt: "desc" },
-              include: {
-                sender: {
-                  select: {
-                    id: true,
-                    username: true,
+              messages: {
+                take: 1,
+                orderBy: { createdAt: "desc" },
+                include: {
+                  sender: {
+                    select: {
+                      id: true,
+                      username: true,
+                    },
                   },
                 },
               },
             },
           },
         },
-      },
-      orderBy: {
-        conversation: {
-          lastMessageAt: "desc",
-        },
-      },
-    });
-    const formattedConversations = conversations.map((participant) => ({
-      conversationId: participant.conversation.id,
-      myRole: participant.participantRole,
-      otherUser: participant.conversation.participants[0]?.user,
-      otherUserRole: participant.conversation.participants[0]?.participantRole,
-      lastMessage: participant.conversation.messages[0],
-      lastMessageAt: participant.conversation.lastMessageAt,
-      unreadCount: 0,
-    }));
-
-    res.json(formattedConversations);
-  } catch (error) {
-    console.error("獲取對話列表錯誤:", error);
-    res.status(500).json({ error: "獲取對話列表失敗" });
-  }
-});
-
-router.get("/messages/:conversationId", async (req, res) => {
-  try {
-    const { conversationId } = req.params;
-    const { page = "1", limit = "50" } = req.query;
-
-    const messages = await prisma.message.findMany({
-      where: { conversationId },
-      include: {
-        sender: {
-          select: {
-            id: true,
-            username: true,
-            avatar: true,
+        orderBy: {
+          conversation: {
+            lastMessageAt: "desc",
           },
         },
-      },
-      orderBy: { createdAt: "desc" },
-      skip: (parseInt(page as string) - 1) * parseInt(limit as string),
-      take: parseInt(limit as string),
-    });
+      });
+      const formattedConversations = await Promise.all(
+        conversations.map(async (participant) => {
+          // 計算未讀訊息數量
+          const lastReadAt = participant.lastReadAt || new Date(0); // 如果 lastReadAt 為 null，則使用遠古時間
+          const unreadCount = await prisma.message.count({
+            where: {
+              conversationId: participant.conversationId,
+              senderId: { not: userId },
+              isRead: false,
+              createdAt: { gt: lastReadAt },
+            },
+          });
 
-    res.json(messages.reverse()); // 讓最新訊息在下方
-  } catch (error) {
-    console.error("獲取訊息錯誤:", error);
-    res.status(500).json({ error: "獲取訊息失敗" });
+          return {
+            conversationId: participant.conversation.id,
+            myRole: participant.participantRole,
+            otherUser: participant.conversation.participants[0]?.user,
+            otherUserRole:
+              participant.conversation.participants[0]?.participantRole,
+            lastMessage: participant.conversation.messages[0],
+            lastMessageAt: participant.conversation.lastMessageAt,
+            unreadCount,
+          };
+        })
+      );
+
+      res.json(formattedConversations);
+    } catch (error) {
+      console.error("獲取對話列表錯誤:", error);
+      res.status(500).json({ error: "獲取對話列表失敗" });
+    }
   }
-});
+);
+
+router.get(
+  "/messages/:conversationId",
+  authorizeRole(),
+  async (req: AuthenticatedRequest, res: Response) => {
+    try {
+      const { conversationId } = req.params;
+      const { page = "1", limit = "50" } = req.query;
+
+      const messages = await prisma.message.findMany({
+        where: { conversationId },
+        include: {
+          sender: {
+            select: {
+              id: true,
+              username: true,
+              avatar: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+        skip: (parseInt(page as string) - 1) * parseInt(limit as string),
+        take: parseInt(limit as string),
+      });
+
+      res.json(messages.reverse()); // 最新訊息在下方
+    } catch (error) {
+      console.error("獲取訊息錯誤:", error);
+      res.status(500).json({ error: "獲取訊息失敗" });
+    }
+  }
+);
 export default router;

@@ -9,13 +9,17 @@
     "start": "NODE_ENV=production node dist/server.js",
     "db:migrate": "prisma migrate deploy",
     "db:reset": "prisma migrate reset",
-    "db:seed": "prisma db seed"
+    "db:seed": "prisma db seed",
+    "es:init": "node dist/services/elasticsearch/elasticsearchManager.js"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "type": "module",
   "dependencies": {
+    "@aws-sdk/credential-provider-node": "^3.876.0",
+    "@elastic/elasticsearch": "^8.12.0",
+    "@opensearch-project/opensearch": "^3.5.1",
     "@prisma/client": "^6.10.1",
     "aws-sdk": "^2.1692.0",
     "bcryptjs": "^2.4.3",
@@ -29,7 +33,9 @@
     "jsonwebtoken": "^9.0.0",
     "multer": "^2.0.0",
     "node-cron": "^4.1.0",
+    "sharp": "^0.34.3",
     "socket.io": "^4.8.1",
+    "tslib": "^2.8.1",
     "type-fest": "^4.41.0",
     "uuid": "^11.1.0"
   },

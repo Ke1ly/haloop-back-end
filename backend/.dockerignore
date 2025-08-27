@@ -9,6 +9,7 @@ npm-debug.log*
 # Env files
 .env
 .env*
+.env.*
 !.env.example 
 
 # Git

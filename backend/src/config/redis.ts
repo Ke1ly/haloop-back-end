@@ -5,7 +5,7 @@ const redisConfig = {
   port: 6379,
   username: "default",
   password: process.env.REDIS_PASSWORD,
-  tls: {}, // ElastiCache 通常需啟用 TLS
+  tls: process.env.NODE_ENV === "production" ? {} : undefined,
   retryDelayOnFailover: 100,
   maxRetriesPerRequest: 3,
   lazyConnect: true, // 延遲連線直到第一次使用

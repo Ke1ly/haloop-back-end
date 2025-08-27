@@ -20,8 +20,18 @@ router.post(
   handleValidationErrors,
   async (req: Request, res: Response) => {
     try {
-      const { email, realname, username, password, userType }: RegisterRequest =
-        req.body;
+      const {
+        email,
+        realname,
+        username,
+        password,
+        userType,
+        unitName,
+        unitDescription,
+        address,
+        city,
+        bio,
+      } = req.body;
 
       // 檢查是否已註冊
       const existingUser = await prisma.user.findFirst({
@@ -33,8 +43,8 @@ router.post(
         res.status(409).json({
           success: false,
           message:
-            existingUser.email === email
-              ? "這個電子郵件已經註冊過囉"
+            existingUser.email.toLowerCase() === email.toLowerCase()
+              ? "這個電子郵件已經註冊過"
               : "此用戶名已經有人使用",
         });
         return;
@@ -63,20 +73,39 @@ router.post(
         },
       });
 
-      if (userType == "HELPER") {
+      if (userType === "HELPER") {
         const newHelperProfile = await prisma.helperProfile.create({
           data: {
             userId: newUser.id,
+            bio,
+          },
+        });
+      } else if (userType === "HOST") {
+        if (!unitName || !address || !city) {
+          return res.status(400).json({
+            success: false,
+            message: "店家註冊需填寫單位名稱、地址與縣市",
+          });
+        }
+
+        const geo = await geocodeAddress(address);
+        let latitude = geo.latitude;
+        let longitude = geo.longitude;
+        let district = geo.district;
+
+        const newHostProfile = await prisma.hostProfile.create({
+          data: {
+            userId: newUser.id,
+            unitName,
+            unitDescription,
+            address,
+            city,
+            latitude,
+            longitude,
+            district,
           },
         });
       }
-      // else if (userType == "HOST") {
-      //   const newHostProfile = await prisma.hostProfile.create({
-      //     data: {
-      //       userId: newUser.id,
-      //     },
-      //   });
-      // }
 
       return void res.status(201).json({
         success: true,
@@ -88,6 +117,7 @@ router.post(
       res.status(500).json({
         success: false,
         message: "伺服器內部錯誤",
+        error: process.env.NODE_ENV === "development",
       });
     }
   }
@@ -202,3 +232,38 @@ router.get(
 );
 
 export default router;
+
+async function geocodeAddress(address: string) {
+  const apiKey = process.env.OPENCAGE_API_KEY;
+  const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
+    address
+  )}&key=${apiKey}&language=zh-TW`;
+
+  const response = await fetch(url);
+  const data = (await response.json()) as { results: any[] };
+
+  if (!data.results || data.results.length === 0) {
+    console.warn(`Geocoding failed for: ${address}`);
+    return {
+      latitude: null,
+      longitude: null,
+      city: null,
+      district: null,
+      note: "Geocoding failed",
+    };
+  }
+
+  const result = data.results[0];
+
+  const lat = result.geometry.lat;
+  const lng = result.geometry.lng;
+  const components = result.components;
+
+  return {
+    latitude: lat,
+    longitude: lng,
+    city: components.city || components.county || components.town,
+    district:
+      components.city_district || components.suburb || components.village,
+  };
+}
