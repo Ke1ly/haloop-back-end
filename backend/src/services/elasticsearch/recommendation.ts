@@ -2,6 +2,10 @@ import cron from "node-cron";
 import redis from "../../config/redis.js";
 import prisma from "../../config/database.js";
 import { esClient } from "../../config/esClient.js";
+import {
+  WorkPostDocument,
+  transformWorkPostForES,
+} from "./elasticsearchManager.js";
 
 // 索引名稱
 const WORK_POST_INDEX = "workposts";
@@ -21,26 +25,6 @@ interface FilterSubscription {
 interface Subscription {
   helperProfileId: string;
   filters: FilterSubscription;
-}
-
-interface WorkPostDocument {
-  id: string;
-  startDate: string;
-  endDate: string;
-  positionName: string;
-  averageWorkHours: number;
-  minDuration: number;
-  recruitCount: number;
-  positionCategories: string[];
-  meals: string[];
-  experiences: string[];
-  environments: string[];
-  accommodations: string[];
-  images: string[];
-  unit: {
-    city: string;
-    unitName: string;
-  };
 }
 
 type SortOrder = "asc" | "desc";
@@ -80,25 +64,6 @@ async function indexNewWorkPost(post: any) {
   });
 }
 
-function transformWorkPostForES(post: any) {
-  return {
-    id: post.id,
-    startDate: post.startDate,
-    endDate: post.endDate,
-    averageWorkHours: post.averageWorkHours,
-    minDuration: post.minDuration,
-    recruitCount: post.recruitCount,
-    positionCategories: post.positionCategories?.map((p: any) => p.name) || [],
-    meals: post.meals?.map((m: any) => m.name) || [],
-    experiences: post.experiences?.map((e: any) => e.name) || [],
-    environments: post.environments?.map((e: any) => e.name) || [],
-    accommodations: post.accommodations?.map((a: any) => a.name) || [],
-    unit: {
-      city: post.unit?.city || "",
-    },
-  };
-}
-
 // 使用 Elasticsearch 獲取推薦貼文
 async function getRecommendedPostsFromES(helperProfileId: string) {
   try {
@@ -120,19 +85,14 @@ async function getRecommendedPostsFromES(helperProfileId: string) {
 
     // 建構 Elasticsearch 查詢
     const esQuery = buildElasticsearchQuery(filters);
+
     // 執行查詢
     const response = await esClient.search({
       index: WORK_POST_INDEX,
       body: esQuery,
-      // query: esQuery.query,
-      sort: [
-        { _score: { order: "desc" as SortOrder } },
-        { startDate: { order: "desc" as SortOrder } },
-      ],
-      size: 10,
     });
 
-    // 轉換結果格式
+    // 轉換格式
     const recommendedPosts = response.body.hits.hits.map((hit: any) => ({
       post: {
         id: hit._source.id,
@@ -141,7 +101,7 @@ async function getRecommendedPostsFromES(helperProfileId: string) {
       score: hit._score,
     }));
 
-    return recommendedPosts.slice(0, 10); // 回傳前10筆
+    return recommendedPosts.slice(0, 10);
   } catch (error) {
     console.error("Error getting recommended posts from Elasticsearch:", error);
     throw error;
@@ -172,7 +132,6 @@ function buildElasticsearchQuery(filters: FilterSubscription) {
       else if (score === 0.3) cityGroups.medium.push(city);
     });
 
-    // 加入不同權重的查詢
     if (cityGroups.exact.length > 0) {
       console.log("cityGroups.exact", cityGroups.exact);
       should.push({
@@ -288,7 +247,7 @@ function buildElasticsearchQuery(filters: FilterSubscription) {
     }
   });
 
-  // 確保有基本時間範圍篩選
+  // 確保時間未過期
   filter.push({
     range: {
       endDate: {
@@ -310,18 +269,19 @@ function buildElasticsearchQuery(filters: FilterSubscription) {
       { _score: { order: "desc" as SortOrder } },
       { startDate: { order: "asc" as SortOrder } },
     ],
+    size: 10,
   };
 }
 
 // 更新的排程任務
-cron.schedule("0 * * * *", async () => {
+cron.schedule("0 3 * * *", async () => {
   try {
     console.log("Starting daily recommendation job with Elasticsearch...");
 
     const helperProfiles = await getAllHelperProfileIds();
 
     for (const helperProfile of helperProfiles) {
-      console.log(`開始進行幫手 ${helperProfile.id} 的推薦`);
+      console.log(`Starting user ${helperProfile.id}'s recommendation`);
 
       try {
         const recommendedPosts = await getRecommendedPostsFromES(
@@ -331,36 +291,18 @@ cron.schedule("0 * * * *", async () => {
           `User ${helperProfile.id} got ${recommendedPosts.length} recommended posts`
         );
         if (recommendedPosts.length > 0) {
-          const recommendedPostIds = recommendedPosts.map((p) => p.post.id);
-          console.log(
-            `${helperProfile.id}`,
-            "的推薦貼文Id",
-            recommendedPostIds
+          const recommendedPostIds = recommendedPosts.map(
+            (p: { post: WorkPostDocument; score: number }) => p.post.id
           );
           const key = `recommended:userId:${helperProfile.id}`;
 
           // 找出尚未推薦過的貼文
           const alreadyRecommended = await redis.smembers(key);
-          console.log(
-            `${helperProfile.id}`,
-            "已經推薦過的貼文",
-            alreadyRecommended
-          );
           const newRecommendations = recommendedPostIds.filter(
             (id) => !alreadyRecommended.includes(String(id))
           );
-          console.log(
-            `${helperProfile.id}`,
-            "扣除已經推薦過的貼文",
-            newRecommendations
-          );
           // 推薦最多 5 筆新資料
           const finalRecommendations = newRecommendations.slice(0, 5);
-          console.log(
-            `${helperProfile.id}`,
-            "抓前五筆資料",
-            finalRecommendations
-          );
           // 加入 Redis 記錄，避免未來重複推薦
           if (finalRecommendations.length > 0) {
             const timestamp = Date.now();
@@ -368,16 +310,15 @@ cron.schedule("0 * * * *", async () => {
               key,
               ...finalRecommendations.flatMap((id: string) => [timestamp, id])
             );
-            // await redis.sadd(key, ...finalRecommendations.map(String));
             await redis.expire(key, 60 * 60 * 24 * 30); // 一個月後過期
 
             console.log(
-              `推薦給使用者 ${helperProfile.id}:`,
+              `Recommendations for ${helperProfile.id}:`,
               finalRecommendations
             );
           }
         } else {
-          console.log(`使用者 ${helperProfile.id} 沒有新貼文可推薦`);
+          console.log(`User ${helperProfile.id} has no recommendations`);
         }
         await new Promise((resolve) => setTimeout(resolve, 1000));
       } catch (error) {
@@ -412,7 +353,6 @@ async function updateWorkPostInES(postId: string) {
         id: true,
         startDate: true,
         endDate: true,
-        positionName: true,
         averageWorkHours: true,
         minDuration: true,
         recruitCount: true,
@@ -421,11 +361,9 @@ async function updateWorkPostInES(postId: string) {
         experiences: { select: { name: true } },
         environments: { select: { name: true } },
         accommodations: { select: { name: true } },
-        images: { select: { imageUrl: true } },
         unit: {
           select: {
             city: true,
-            unitName: true,
           },
         },
       },
@@ -435,29 +373,7 @@ async function updateWorkPostInES(postId: string) {
       await esClient.index({
         index: WORK_POST_INDEX,
         id: postId,
-        document: {
-          id: workPost.id,
-          startDate: workPost.startDate,
-          endDate: workPost.endDate,
-          positionName: workPost.positionName,
-          averageWorkHours: workPost.averageWorkHours,
-          minDuration: workPost.minDuration,
-          recruitCount: workPost.recruitCount,
-          positionCategories: (workPost.positionCategories || []).map(
-            (cat) => cat.name
-          ),
-          meals: (workPost.meals || []).map((meal) => meal.name),
-          experiences: (workPost.experiences || []).map((exp) => exp.name),
-          environments: (workPost.environments || []).map((env) => env.name),
-          accommodations: (workPost.accommodations || []).map(
-            (acc) => acc.name
-          ),
-          images: (workPost.images || []).map((img) => img.imageUrl),
-          unit: {
-            city: workPost.unit.city,
-            unitName: workPost.unit.unitName,
-          },
-        },
+        body: transformWorkPostForES(workPost),
       });
       console.log(`Updated work post ${postId} in Elasticsearch`);
     }
