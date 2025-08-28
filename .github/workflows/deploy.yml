@@ -6,8 +6,7 @@ on:
       - main
     workflow_dispatch:
 env:
-  DOCKER_TAG: ${{ github.sha }}
-
+  DOCKER_TAG: ${{ github.sha || github.run_id }}
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
@@ -39,31 +38,48 @@ jobs:
   deploy:
     needs: build-and-push
     runs-on: ubuntu-latest
-
+    permissions:
+      id-token: write
+      contents: read
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Configure AWS credentials from OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::${{ secrets.AWS_ROLE_ARN }}:role/${{ secrets.AWS_ROLE_NAME }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
       - name: Create .env.production file
         run: |
           cat > .env.production << EOF
           NODE_ENV=production
           PORT=${{ secrets.PORT }}
           CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}
-          DATABASE_URL=${{ secrets.DATABASE_URL }}
           REDIS_HOST=${{ secrets.REDIS_HOST }}
-          REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}
-          JWT_SECRET=${{ secrets.JWT_SECRET }}
-          OPENCAGE_API_KEY=${{ secrets.OPENCAGE_API_KEY }}
           VIRTUAL_HOST=${{ secrets.VIRTUAL_HOST }}
           LETSENCRYPT_HOST=${{ secrets.LETSENCRYPT_HOST }}
           LETSENCRYPT_EMAIL=${{ secrets.LETSENCRYPT_EMAIL }}
-          AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION=${{ secrets.AWS_REGION }}
-          S3_BUCKET=${{ secrets.S3_BUCKET }}
           CLOUDFRONT_URL=${{ secrets.CLOUDFRONT_URL }}
           DOCKER_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ env.DOCKER_TAG }}
+          AWS_REGION=${{ secrets.AWS_REGION }} 
+          OPENSEARCH_URL=${{ secrets.OPENSEARCH_URL }} 
           EOF
+
+      - name: Load secrets from SSM
+        run: |
+          DATABASE_URL=$(aws ssm get-parameter --name "/app/database_url" --with-decryption --query "Parameter.Value" --output text)
+          REDIS_PASSWORD=$(aws ssm get-parameter --name "/app/redis-password" --with-decryption --query "Parameter.Value" --output text)
+          JWT_SECRET=$(aws ssm get-parameter --name "/app/jwt-secret" --with-decryption --query "Parameter.Value" --output text)
+          OPENCAGE_API_KEY=$(aws ssm get-parameter --name "/app/opencage-api-key" --with-decryption --query "Parameter.Value" --output text)
+          S3_BUCKET_NAME=$(aws ssm get-parameter --name "/app/s3-bucket-name" --with-decryption --query "Parameter.Value" --output text)
+
+          echo "DATABASE_URL=$DATABASE_URL" >> .env.production
+          echo "REDIS_PASSWORD=$REDIS_PASSWORD" >> .env.production
+          echo "JWT_SECRET=$JWT_SECRET" >> .env.production
+          echo "OPENCAGE_API_KEY=$OPENCAGE_API_KEY" >> .env.production
+          echo "S3_BUCKET_NAME=$S3_BUCKET_NAME" >> .env.production
 
       - name: Copy files to EC2
         uses: appleboy/scp-action@v0.1.4
@@ -73,6 +89,32 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           source: ".env.production,docker-compose.yml,setup-infrastructure.sh"
           target: "${{ secrets.EC2_PROJECT_PATH }}"
+
+      - name: Initialize OpenSearch (Run Once)
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USER }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          script: |
+            cd ${{ secrets.EC2_PROJECT_PATH }}
+            if [ ! -f initialized ]; then
+              echo "Running OpenSearch initialization..."
+              sudo docker run --rm \
+                --network nginx-proxy \
+                --env-file .env.production \
+                ${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ env.DOCKER_TAG }} \
+                node dist/scripts/initOpensearch.js
+              if [ $? -eq 0 ]; then
+                echo "OpenSearch initialization successful"
+                touch initialized
+              else
+                echo "OpenSearch initialization failed"
+                exit 1
+              fi
+            else
+              echo "OpenSearch already initialized, skipping"
+            fi
 
       - name: Deploy to EC2
         uses: appleboy/ssh-action@v1.0.0
