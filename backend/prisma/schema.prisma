@@ -148,10 +148,10 @@ model HostProfile {
   id              String     @id @default(cuid())
   userId          String     @unique
   user            User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  unitName        String?
-  unitDescription String?
-  address         String?
-  city            String?
+  unitName        String
+  unitDescription String
+  address         String
+  city            String
   district        String?
   latitude        Float?
   longitude       Float?

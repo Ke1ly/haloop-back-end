@@ -197,7 +197,9 @@ router.post(
       // 比對訂閱
       setImmediate(async () => {
         try {
-          await processWorkPostNotifications(newWorkPost, hostProfile);
+          if (hostProfile) {
+            await processWorkPostNotifications(newWorkPost, hostProfile);
+          }
         } catch (error) {
           console.error("Background notification processing failed:", error);
           // 加入重試機制
