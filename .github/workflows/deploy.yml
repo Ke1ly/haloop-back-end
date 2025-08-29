@@ -126,7 +126,7 @@ jobs:
 
             if [ ! -f initialized ]; then
               echo "Running OpenSearch initialization..."
-              sudo docker-compose run --rm init-opensearch
+              sudo -E DOCKER_IMAGE="${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ env.DOCKER_TAG }}" docker-compose run --rm init-opensearch
               if [ $? -eq 0 ]; then
                 echo "OpenSearch initialization successful"
                 touch initialized
