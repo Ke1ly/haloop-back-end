@@ -14,7 +14,7 @@ services:
       - app-logs:/app/logs
   init-opensearch:
     image: ${DOCKER_IMAGE}
-    command: node dist/scripts/initOpensearch.js
+    command: node dist/services/elasticsearch/initOpensearch.js
     env_file:
       - .env.production
 networks:

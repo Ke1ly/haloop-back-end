@@ -1,4 +1,4 @@
-import { initialize } from "./src/services/elasticsearch/elasticsearchManager.ts";
+import { initialize } from "./elasticsearchManager.js";
 
 async function runInitialization() {
   try {
