@@ -13,11 +13,6 @@ services:
     volumes:
       - app-logs:/app/logs
 
-  init-opensearch:
-    image: ${DOCKER_IMAGE}
-    command: node dist/scripts/initOpensearch.js
-    env_file:
-      - .env.production
 networks:
   nginx-proxy:
     external: true

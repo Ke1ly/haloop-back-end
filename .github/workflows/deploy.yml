@@ -124,18 +124,4 @@ jobs:
             sudo -E docker-compose --env-file .env.production up -d
             sudo -E docker image prune -f
 
-            if [ ! -f initialized ]; then
-              echo "Running OpenSearch initialization..."
-              sudo docker-compose run --rm init-opensearch
-              if [ $? -eq 0 ]; then
-                echo "OpenSearch initialization successful"
-                touch initialized
-              else
-                echo "OpenSearch initialization failed"
-                exit 1
-              fi
-            else
-              echo "OpenSearch already initialized, skipping"
-            fi
-
             echo "Deployment completed successfully"

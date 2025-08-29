@@ -9,7 +9,7 @@ import {
   Subscription,
 } from "../types/Work.js";
 import { sendSocketNotificationToHelper } from "../services/notificationService.js";
-// import { indexNewWorkPost } from "../services/elasticsearch/recommendation.js";
+import { indexNewWorkPost } from "../services/elasticsearch/recommendation.js";
 
 router.post(
   "/",
