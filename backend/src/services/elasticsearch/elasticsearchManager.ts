@@ -56,7 +56,7 @@ export interface WorkPostDocument {
 async function initializeIndices() {
   try {
     console.log("Checking if index exists...");
-    const { body: indexExists } = await esClient.indices.exists({
+    const indexExists = await esClient.indices.exists({
       index: WORK_POST_INDEX,
     });
 
@@ -64,6 +64,9 @@ async function initializeIndices() {
     //   index: WORK_POST_INDEX,
     // });
     if (indexExists) {
+      console.log(
+        `Index ${WORK_POST_INDEX} already exists. Checking mapping...`
+      );
       const { body } = await esClient.indices.getMapping({
         index: WORK_POST_INDEX,
       });
@@ -86,7 +89,7 @@ async function initializeIndices() {
         return;
       }
     } else {
-      console.log(" Creating new index...");
+      console.log(`Index ${WORK_POST_INDEX} not found. Creating...`);
       await esClient.indices.create({
         index: WORK_POST_INDEX,
         body: {
