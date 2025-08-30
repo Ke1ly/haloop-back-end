@@ -2,6 +2,17 @@
 # setup-infrastructure.sh
 echo "Setting up global infrastructure..."
 
+# 創建本地配置目錄
+mkdir -p ./nginx-conf
+
+# 創建自訂 Nginx 配置
+cat <<EOL > ./nginx-conf/default_location
+client_max_body_size 50M;
+add_header Access-Control-Allow-Origin * always;
+add_header Access-Control-Allow-Methods GET,POST,OPTIONS always;
+add_header Access-Control-Allow-Headers Content-Type always;
+EOL
+
 sudo docker network create nginx-proxy 2>/dev/null || echo "Network nginx-proxy already exists"
 
 sudo docker volume create nginx-certs 2>/dev/null || true
@@ -21,6 +32,7 @@ if ! sudo docker ps | grep -q nginx-proxy; then
         -v nginx-certs:/etc/nginx/certs \
         -v nginx-vhost:/etc/nginx/vhost.d \
         -v nginx-html:/usr/share/nginx/html \
+        -v $(pwd)/nginx-conf/default_location:/etc/nginx/vhost.d/default_location:ro \
         --restart unless-stopped \
         nginxproxy/nginx-proxy:latest
 else
