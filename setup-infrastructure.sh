@@ -11,7 +11,7 @@ client_max_body_size 50M;
 add_header Access-Control-Allow-Origin * always;
 add_header Access-Control-Allow-Methods GET,POST,OPTIONS always;
 add_header Access-Control-Allow-Headers Content-Type always;
-proxy_set_header Upgrade $http_upgrade;
+proxy_set_header Upgrade \$http_upgrade;
 proxy_set_header Connection "upgrade";
 proxy_http_version 1.1;
 EOL
