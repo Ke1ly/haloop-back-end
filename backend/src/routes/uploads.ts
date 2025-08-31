@@ -31,9 +31,20 @@ router.post(
   "/",
   upload.array("images"),
   async (req: Request, res: Response) => {
-    const s3 = new AWS.S3({
-      region: process.env.AWS_REGION,
-    });
+    let s3: any;
+    if (process.env.NODE_ENV === "production") {
+      s3 = new AWS.S3({
+        region: process.env.AWS_REGION,
+      });
+    } else {
+      s3 = new AWS.S3({
+        region: process.env.AWS_REGION,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY!,
+          secretAccessKey: process.env.AWS_SECRET_KEY!,
+        },
+      });
+    }
 
     const files = req.files as Express.Multer.File[];
     if (!files || files.length === 0) {

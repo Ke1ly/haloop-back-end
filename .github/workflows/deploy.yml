@@ -65,6 +65,7 @@ jobs:
           DOCKER_IMAGE=${{ secrets.DOCKER_USERNAME }}/${{ secrets.DOCKER_IMAGE_NAME }}:${{ env.DOCKER_TAG }}
           AWS_REGION=${{ secrets.AWS_REGION }} 
           OPENSEARCH_URL=${{ secrets.OPENSEARCH_URL }} 
+          VIRTUAL_PROTO = wss
           EOF
 
       - name: Load secrets from SSM

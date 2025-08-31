@@ -12,6 +12,7 @@ services:
       - nginx-proxy
     volumes:
       - app-logs:/app/logs
+
   init-opensearch:
     image: ${DOCKER_IMAGE}
     command: node dist/services/elasticsearch/initOpensearch.js
