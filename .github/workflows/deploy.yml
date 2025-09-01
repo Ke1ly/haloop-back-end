@@ -88,7 +88,7 @@ jobs:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          source: ".env.production,docker-compose.yml,setup-infrastructure.sh"
+          source: ".env.production,docker-compose.yml,nginx/conf.d/upload.conf"
           target: "${{ secrets.EC2_PROJECT_PATH }}"
 
       - name: Deploy to EC2
@@ -99,16 +99,6 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
             cd ${{ secrets.EC2_PROJECT_PATH }}
-
-            sudo docker network create nginx-proxy 2>/dev/null || true 
-
-            if ! sudo docker ps | grep -q nginx-proxy || ! sudo docker ps | grep -q acme-companion; then
-              echo "Infrastructure services not running, setting up..."
-              chmod +x setup-infrastructure.sh
-              ./setup-infrastructure.sh
-            else
-              echo "Infrastructure services are running"
-            fi
 
             echo "${{ secrets.DOCKER_TOKEN }}" | sudo docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 

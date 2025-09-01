@@ -1,4 +1,36 @@
 services:
+  nginx-proxy:
+    image: nginxproxy/nginx-proxy:latest
+    container_name: nginx-proxy
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - /var/run/docker.sock:/tmp/docker.sock:ro # 綁定主機的 Docker socket，用來讀其他容器的資訊
+      - nginx-certs:/etc/nginx/certs:rw
+      - nginx-vhost:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+      - ./nginx/conf.d:/etc/nginx/conf.d
+
+    networks:
+      - nginx-proxy
+    restart: unless-stopped
+
+  acme-companion:
+    image: nginxproxy/acme-companion:latest
+    container_name: acme-companion
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - nginx-certs:/etc/nginx/certs:rw
+      - nginx-vhost:/etc/nginx/vhost.d
+      - nginx-html:/usr/share/nginx/html
+      - acme-state:/etc/acme.sh
+    networks:
+      - nginx-proxy
+    restart: unless-stopped
+    depends_on:
+      - nginx-proxy
+
   backend:
     image: ${DOCKER_IMAGE}
     platform: linux/amd64
@@ -18,9 +50,14 @@ services:
     command: node dist/services/elasticsearch/initOpensearch.js
     env_file:
       - .env.production
+
 networks:
   nginx-proxy:
     external: true
 
 volumes:
   app-logs:
+  nginx-certs:
+  nginx-vhost:
+  nginx-html:
+  acme-state:

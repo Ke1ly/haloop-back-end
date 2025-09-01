@@ -9,8 +9,8 @@ mkdir -p ./nginx-conf
 cat <<EOL > ./nginx-conf/default_location
 client_max_body_size 50M;
 add_header Access-Control-Allow-Origin * always;
-add_header Access-Control-Allow-Methods GET,POST,OPTIONS always;
-add_header Access-Control-Allow-Headers Content-Type always;
+add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+add_header Access-Control-Allow-Headers "Authorization, Content-Type" always;
 proxy_set_header Upgrade \$http_upgrade;
 proxy_set_header Connection "upgrade";
 proxy_http_version 1.1;
@@ -53,7 +53,6 @@ if ! sudo docker ps | grep -q acme-companion; then
         -v nginx-vhost:/etc/nginx/vhost.d \
         -v nginx-html:/usr/share/nginx/html \
         -v acme-state:/etc/acme.sh \
-        --volumes-from nginx-proxy \
         --restart unless-stopped \
         nginxproxy/acme-companion:latest
 else
