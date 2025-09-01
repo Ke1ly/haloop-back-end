@@ -35,8 +35,6 @@ services:
     image: ${DOCKER_IMAGE}
     platform: linux/amd64
     container_name: haloop-backend
-    ports:
-      - "3000:3000"
     env_file:
       - .env.production
     environment:
@@ -44,6 +42,8 @@ services:
       - VIRTUAL_PORT=3000
       - LETSENCRYPT_HOST=api.haloop.yunn.space
       - LETSENCRYPT_EMAIL=tzuyun124@gmail.com
+      - VIRTUAL_PROTO=http
+      - HTTPS_METHOD=redirect
     restart: unless-stopped
     networks:
       - nginx-proxy
