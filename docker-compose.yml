@@ -40,6 +40,11 @@ services:
       - "3000:3000"
     env_file:
       - .env.production
+    environment:
+      - VIRTUAL_HOST=api.haloop.yunn.space
+      - VIRTUAL_PORT=3000
+      - LETSENCRYPT_HOST=api.haloop.yunn.space
+      - LETSENCRYPT_EMAIL=tzuyun124@gmail.com
     restart: unless-stopped
     networks:
       - nginx-proxy
