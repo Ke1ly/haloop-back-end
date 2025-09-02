@@ -44,6 +44,10 @@ services:
       - LETSENCRYPT_EMAIL=tzuyun124@gmail.com
       - VIRTUAL_PROTO=http
       - HTTPS_METHOD=redirect
+      - PROXY_BODY_SIZE=50m
+      - PROXY_READ_TIMEOUT=180s
+      - PROXY_CONNECT_TIMEOUT=180s
+      - PROXY_SEND_TIMEOUT=180s
     restart: unless-stopped
     networks:
       - nginx-proxy
