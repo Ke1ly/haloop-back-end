@@ -8,7 +8,8 @@ services:
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - nginx-certs:/etc/nginx/certs:rw
-      - nginx-vhost:/etc/nginx/vhost.d
+        # 直接映射整個本地 vhost.d 目錄，取代 named volume
+      - ./nginx/vhost.d:/etc/nginx/vhost.d:ro
       - nginx-html:/usr/share/nginx/html
     networks:
       - nginx-proxy
@@ -20,7 +21,7 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - nginx-certs:/etc/nginx/certs:rw
-      - nginx-vhost:/etc/nginx/vhost.d
+      - ./nginx/vhost.d:/etc/nginx/vhost.d:rw
       - nginx-html:/usr/share/nginx/html
       - acme-state:/etc/acme.sh
     networks:
@@ -44,10 +45,6 @@ services:
       - LETSENCRYPT_EMAIL=tzuyun124@gmail.com
       - VIRTUAL_PROTO=http
       - HTTPS_METHOD=redirect
-      - PROXY_BODY_SIZE=50m
-      - PROXY_READ_TIMEOUT=180s
-      - PROXY_CONNECT_TIMEOUT=180s
-      - PROXY_SEND_TIMEOUT=180s
     restart: unless-stopped
     networks:
       - nginx-proxy
@@ -67,6 +64,5 @@ networks:
 volumes:
   app-logs:
   nginx-certs:
-  nginx-vhost:
   nginx-html:
   acme-state:
