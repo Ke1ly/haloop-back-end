@@ -263,13 +263,14 @@ router.get(
 );
 
 router.get(
-  "/:subscriptionId/matched-posts",
+  "/matched-posts",
   authorizeRole("HELPER"),
   async (req: AuthenticatedRequest, res: Response) => {
     const userId = req.user?.userId;
     if (!userId) return res.status(401).json({ message: "Unauthorized" });
 
-    const subscriptionId = req.params.subscriptionId;
+    // const subscriptionId = req.params.subscriptionId;
+    const subscriptionId = req.query.id as string;
 
     // 驗證該 FilterSubscription 屬於當前使用者
     const subscription = await prisma.filterSubscription.findUnique({
