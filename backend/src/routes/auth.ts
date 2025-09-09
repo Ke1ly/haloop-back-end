@@ -170,7 +170,7 @@ router.post(
       // 更新最後登入時間
       await prisma.user.update({
         where: { id: user.id },
-        data: { updatedAt: new Date() },
+        data: { lastLoginAt: new Date() },
       });
 
       const { password: _, ...userWithoutPassword } = user;

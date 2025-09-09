@@ -17,6 +17,7 @@ import chatRouter from "./routes/chat.js";
 import "./services/elasticsearch/recommendation.js";
 import { initializeSocket } from "./services/socket/socketManager.js";
 import { setIOInstance } from "./services/notificationService.js";
+import { initNotificationWorker } from "./config/queue.js";
 
 async function main() {
   //set .env parameters
@@ -80,6 +81,10 @@ async function main() {
   app.get("/", (req, res) => {
     res.sendFile(path.join(__dirname, "dist", "index.html"));
   });
+
+  if (process.env.NODE_ENV === "development") {
+    initNotificationWorker();
+  }
 
   // 啟動伺服器
   const host = process.env.NODE_ENV === "production" ? "0.0.0.0" : "localhost";

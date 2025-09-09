@@ -11,7 +11,13 @@ router.get("/", async (req: Request, res: Response) => {
     const workPost = await prisma.workPost.findUnique({
       where: { id: workpostId },
       include: {
-        unit: true,
+        unit: {
+          include: {
+            user: {
+              select: { lastLoginAt: true },
+            },
+          },
+        },
         images: true,
         positionCategories: true,
         requirements: true,

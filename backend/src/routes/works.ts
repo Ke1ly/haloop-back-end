@@ -2,14 +2,9 @@ import prisma from "../config/database.js";
 import express, { Request, Response } from "express";
 const router = express.Router();
 import { authorizeRole, AuthenticatedRequest } from "../middlewares/auth.js";
-import {
-  WorkPostFilterInput,
-  WorkPostForFilter,
-  FilterSubscription,
-  Subscription,
-} from "../types/Work.js";
-import { sendSocketNotificationToHelper } from "../services/notificationService.js";
+import { WorkPostFilterInput } from "../types/Work.js";
 import { indexNewWorkPost } from "../services/elasticsearch/recommendation.js";
+import { notificationQueue } from "../config/queue.js";
 
 router.post(
   "/",
@@ -193,122 +188,22 @@ router.post(
         return newWorkPost;
       });
       res.status(201).json({ newWorkPost: newWorkPost });
-
-      // 比對訂閱
-      setImmediate(async () => {
-        try {
-          if (hostProfile) {
-            await processWorkPostNotifications(newWorkPost, hostProfile);
-          }
-        } catch (error) {
-          console.error("Background notification processing failed:", error);
-          // 加入重試機制
-        }
-      });
-
+      const formattedWorkPost = formatWorkPost(newWorkPost);
       // 同步至 Elasticsearch
-      // try {
-      //   await indexNewWorkPost(newWorkPost);
-      // } catch (error) {
-      //   console.error("Error syncing new work post:", error);
+      try {
+        await indexNewWorkPost(newWorkPost);
+        await enqueueNotificationJob(formattedWorkPost, hostProfile.unitName);
+      } catch (error) {
+        console.error("Error syncing new work post:", error);
 
-      //   // await redis.lpush("failed:workposts", newWorkPost.id); // 記錄補償
-      // }
+        // await redis.lpush("failed:workposts", newWorkPost.id); // 記錄補償
+      }
     } catch (error) {
       console.error("Error creating work post:", error);
       res.status(500).json({ message: "Failed to create work post" });
     }
   }
 );
-
-// 回傳 { helperId, subscriptionId }[]
-function getMatchingSubscriptions(
-  formattedWorkPost: WorkPostForFilter,
-  subscriptions: { id: string; helperProfileId: string; filters: any }[]
-): { helperId: string; subscriptionId: string }[] {
-  const hasIntersection = (
-    postItems: string[],
-    filterItems?: string[] | null
-  ) => {
-    if (
-      filterItems === null ||
-      filterItems === undefined ||
-      filterItems.length === 0
-    )
-      return true;
-    return postItems.some((item) => filterItems.includes(item));
-  };
-
-  const matches: { helperId: string; subscriptionId: string }[] = [];
-
-  subscriptions.forEach((subscription) => {
-    const f = subscription.filters;
-
-    const subStart = f.startDate ? new Date(f.startDate) : undefined;
-    const subEnd = f.endDate ? new Date(f.endDate) : undefined;
-
-    const isDateValid =
-      (!subStart || subStart >= formattedWorkPost.startDate) &&
-      (!subEnd || subEnd <= formattedWorkPost.endDate);
-
-    const isCityValid =
-      f.city !== null &&
-      f.city !== undefined &&
-      formattedWorkPost.unit.city == f.city;
-
-    const isRecruitValid =
-      f.applicantCount !== null &&
-      f.applicantCount !== undefined &&
-      formattedWorkPost.recruitCount >= f.applicantCount;
-
-    const isWorkValid =
-      (f.averageWorkHours === null ||
-        f.averageWorkHours === undefined ||
-        formattedWorkPost.averageWorkHours <= f.averageWorkHours) &&
-      (f.minDuration === null ||
-        f.minDuration === undefined ||
-        formattedWorkPost.minDuration <= f.minDuration);
-
-    const isAccommodationsMatch = hasIntersection(
-      formattedWorkPost.accommodations,
-      f.accommodations
-    );
-
-    const isEnvironmentsMatch = hasIntersection(
-      formattedWorkPost.environments,
-      f.environments
-    );
-
-    const isExperiencesMatch = hasIntersection(
-      formattedWorkPost.experiences,
-      f.experiences
-    );
-
-    const isMealsMatch = hasIntersection(formattedWorkPost.meals, f.meals);
-    const isPositionMatch = hasIntersection(
-      formattedWorkPost.positionCategories,
-      f.positionCategories
-    );
-
-    let isMatch =
-      isDateValid &&
-      isCityValid &&
-      isRecruitValid &&
-      isWorkValid &&
-      (isAccommodationsMatch ||
-        isEnvironmentsMatch ||
-        isExperiencesMatch ||
-        isMealsMatch ||
-        isPositionMatch);
-    if (isMatch) {
-      matches.push({
-        helperId: subscription.helperProfileId,
-        subscriptionId: subscription.id,
-      });
-    }
-  });
-  return matches;
-}
 
 router.get("/", async (req: Request, res: Response) => {
   const {
@@ -470,140 +365,9 @@ function formatWorkPost(post: any) {
   };
 }
 
-// 背景處理通知
-async function processWorkPostNotifications(
-  newWorkPost: any,
-  hostProfile: { id: string; unitName: string }
-) {
-  try {
-    // 批次取出所有訂閱，使用分頁避免記憶體問題
-    const BATCH_SIZE = 100;
-    let offset = 0;
-    let hasMore = true;
-
-    while (hasMore) {
-      const rawSubscriptions = await prisma.filterSubscription.findMany({
-        select: {
-          id: true,
-          helperProfileId: true,
-          filters: true,
-        },
-        skip: offset,
-        take: BATCH_SIZE,
-      });
-
-      if (rawSubscriptions.length === 0) {
-        hasMore = false;
-        break;
-      }
-
-      // 整理訂閱格式
-      function parseFilter(json: unknown): FilterSubscription {
-        if (typeof json !== "object" || json === null || Array.isArray(json)) {
-          throw new Error("Invalid filter format");
-        }
-        return json as FilterSubscription;
-      }
-
-      const subscriptions: {
-        id: string;
-        helperProfileId: string;
-        filters: FilterSubscription;
-      }[] = rawSubscriptions.map((subscription) => ({
-        id: subscription.id,
-        helperProfileId: subscription.helperProfileId,
-        filters: parseFilter(subscription.filters),
-      }));
-
-      // 整理貼文格式
-      const formattedWorkPost = formatWorkPost(newWorkPost);
-
-      // 比對訂閱條件與貼文
-      const matchedSubscriptions = getMatchingSubscriptions(
-        formattedWorkPost,
-        subscriptions
-      );
-
-      if (matchedSubscriptions.length > 0) {
-        await prisma.matchedWorkPost.createMany({
-          data: matchedSubscriptions.map((match) => ({
-            workPostId: newWorkPost.id,
-            filterSubscriptionId: match.subscriptionId,
-          })),
-          skipDuplicates: true,
-        });
-      }
-
-      // 批次發送通知
-      const matchedHelperIds = matchedSubscriptions.map(
-        (match) => match.helperId
-      );
-      if (matchedHelperIds.length > 0) {
-        await sendBatchNotifications(
-          matchedHelperIds,
-          newWorkPost,
-          hostProfile.unitName
-        );
-      }
-
-      offset += BATCH_SIZE;
-    }
-  } catch (error) {
-    console.error("Error in processWorkPostNotifications:", error);
-    throw error;
-  }
+async function enqueueNotificationJob(post: any, unitName: string) {
+  await notificationQueue.add("notifyForPost", { post, unitName });
+  console.log(`Enqueued notification job for post ${post.id}`);
 }
 
-// 批次發送通知函數
-async function sendBatchNotifications(
-  helperIds: string[],
-  workPost: any,
-  unitName: string
-) {
-  const notification = {
-    id: `workpost_${workPost.id}_${Date.now()}`,
-    title: "新店家符合您的條件！",
-    message: `${unitName} 發佈了新貼文：${workPost.positionName}`,
-    data: {
-      workPostId: workPost.id,
-      unitName: unitName,
-      positionName: workPost.positionName,
-    },
-    timestamp: new Date().toISOString(),
-  };
-
-  const helperProfiles = await prisma.helperProfile.findMany({
-    where: { id: { in: helperIds } },
-    select: { id: true, userId: true },
-  });
-
-  const helperIdToUserId = new Map(
-    helperProfiles.map((profile) => [profile.id, profile.userId])
-  );
-
-  const results = await Promise.allSettled(
-    helperIds.map((helperId) => {
-      try {
-        const userId = helperIdToUserId.get(helperId);
-        if (!userId) {
-          throw new Error(`未找到對應的 helperProfile，helperId: ${helperId}`);
-        }
-        sendSocketNotificationToHelper(helperId, userId, notification);
-      } catch (error) {
-        console.error(`處理 helperId ${helperId} 失敗:`, error);
-        throw error;
-      }
-    })
-  );
-
-  // 記錄失敗的通知
-  results.forEach((result, index) => {
-    if (result.status === "rejected") {
-      console.error(
-        `Failed to send notification to helper ${helperIds[index]}:`,
-        result.reason
-      );
-    }
-  });
-}
 export default router;

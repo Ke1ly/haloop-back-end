@@ -9,6 +9,7 @@ import {
   Subscription,
 } from "../types/Work.js";
 import redis from "../config/redis.js";
+import { indexSubscriptionAsPercolator } from "../services/elasticsearch/elasticsearchManager.js";
 
 router.post(
   "/",
@@ -73,6 +74,25 @@ router.post(
         environments: environments ?? [],
       },
     };
+
+    if (
+      !(
+        city ||
+        startDate ||
+        endDate ||
+        applicantCount ||
+        averageWorkHours ||
+        minDuration ||
+        positionCategories.length ||
+        meals.length ||
+        experiences.length ||
+        accommodations.length ||
+        experiences.length ||
+        environments.length
+      )
+    ) {
+      return void res.status(404).json({ message: "至少需要選擇一個條件" });
+    }
 
     if (name) {
       data.name = name;
@@ -148,6 +168,9 @@ router.post(
     const newSubscription = await prisma.filterSubscription.create({
       data,
     });
+
+    // 將 subscription 索引到 ES 和 percolator
+    await indexSubscriptionAsPercolator(newSubscription);
 
     res.status(201).json({ newSubscription });
   }
