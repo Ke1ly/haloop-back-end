@@ -1,5 +1,7 @@
 import { Server as SocketIOServer, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
+import { createAdapter } from "@socket.io/redis-adapter";
+import { Redis } from "ioredis";
 import jwt from "jsonwebtoken";
 import prisma from "../../config/database.js";
 import { chatHandlers } from "./chatHandlers.js";
@@ -10,7 +12,9 @@ import { connectionHandlers } from "./connectionHandlers.js";
 export const userSocketMap = new Map<string, Set<string>>(); // userId -> Set of socketIds
 
 // Socket 管理器初始化
-export const initializeSocket = (httpServer: HttpServer): SocketIOServer => {
+export const initializeSocket = async (
+  httpServer: HttpServer
+): Promise<SocketIOServer> => {
   const io = new SocketIOServer(httpServer, {
     cors: {
       origin: process.env.CORS_ORIGIN,
@@ -19,6 +23,37 @@ export const initializeSocket = (httpServer: HttpServer): SocketIOServer => {
     transports: ["websocket", "polling"], // 支援多種傳輸方式  // MPA 下的連線設定
     allowEIO3: true, // 向下相容
   });
+
+  if (process.env.NODE_ENV === "production") {
+    console.log(" 初始化 Redis Adapter...");
+    const pubClient = new Redis({
+      host: process.env.REDIS_HOST,
+      port: 6379,
+      username: "default",
+      password: process.env.REDIS_PASSWORD || "",
+      tls: process.env.NODE_ENV === "production" ? {} : undefined,
+      maxRetriesPerRequest: null,
+    });
+    const subClient = pubClient.duplicate();
+
+    // 錯誤處理
+    pubClient.on("error", (err) =>
+      console.error("Redis pubClient error:", err)
+    );
+    subClient.on("error", (err) =>
+      console.error("Redis subClient error:", err)
+    );
+    io.adapter(createAdapter(pubClient, subClient));
+    console.log("Socket.IO 使用 Redis Adapter");
+
+    process.on("SIGTERM", async () => {
+      await pubClient.quit();
+      await subClient.quit();
+      io.close();
+    });
+  } else {
+    console.log("Socket.IO 使用本地記憶體模式");
+  }
 
   // JWT 認證中介軟體
   io.use(async (socket, next) => {
@@ -66,6 +101,9 @@ export const initializeSocket = (httpServer: HttpServer): SocketIOServer => {
         socket.id
       }, 頁面: ${socket.handshake.query.page || "unknown"}`
     );
+
+    socket.join(`user_${userId}`);
+    console.log(`用戶 ${userId} 已加入房間 user_${userId}`);
 
     // 註冊所有事件處理器
     connectionHandlers(socket, io, userSocketMap);

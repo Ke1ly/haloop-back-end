@@ -17,15 +17,15 @@ import chatRouter from "./routes/chat.js";
 import "./services/elasticsearch/recommendation.js";
 import { initializeSocket } from "./services/socket/socketManager.js";
 import { setIOInstance } from "./services/notificationService.js";
-import { initNotificationWorker } from "./config/queue.js";
+import { initNotificationWorker, setSharedIOInstance } from "./config/queue.js";
 
 async function main() {
-  //set .env parameters
-  if (process.env.NODE_ENV === "production") {
-    dotenv.config({ path: ".env.production" });
-  } else {
+  if (process.env.NODE_ENV === "development") {
     dotenv.config({ path: ".env.development" });
   }
+  // else {
+  //   dotenv.config({ path: ".env.production" });
+  // }
 
   //set server
   const app = express();
@@ -33,7 +33,7 @@ async function main() {
 
   // 初始化 Socket.IO
   const httpServer = http.createServer(app);
-  const io = initializeSocket(httpServer);
+  const io = await initializeSocket(httpServer);
   setIOInstance(io); // 設定全域 IO 實例
 
   // middleware
@@ -83,6 +83,7 @@ async function main() {
   });
 
   if (process.env.NODE_ENV === "development") {
+    setSharedIOInstance(io);
     initNotificationWorker();
   }
 

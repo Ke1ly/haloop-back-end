@@ -111,7 +111,7 @@ jobs:
 
             sudo -E docker-compose down --remove-orphans
             sudo -E docker-compose pull
-            sudo -E docker-compose up -d backend init-opensearch
+            sudo -E docker-compose up -d backend init-opensearch notification-worker
             sudo -E docker-compose up -d nginx-proxy
             until sudo docker exec nginx-proxy nginx -t &>/dev/null; do
               echo "Waiting for nginx-proxy to be ready..."

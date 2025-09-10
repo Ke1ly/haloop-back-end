@@ -8,7 +8,6 @@ services:
     volumes:
       - /var/run/docker.sock:/tmp/docker.sock:ro
       - nginx-certs:/etc/nginx/certs:rw
-        # 直接映射整個本地 vhost.d 目錄，取代 named volume
       - ./nginx/vhost.d:/etc/nginx/vhost.d:ro
       - nginx-html:/usr/share/nginx/html
     networks:
@@ -56,6 +55,29 @@ services:
     command: node dist/services/elasticsearch/initOpensearch.js
     env_file:
       - .env.production
+
+  notification-worker:
+    image: ${DOCKER_IMAGE}
+    container_name: notification-worker
+    command: ["node", "dist/config/queue.js", "--worker"]
+    env_file:
+      - .env.production
+    environment:
+      - NODE_MODE=worker
+    networks:
+      - nginx-proxy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+        reservations:
+          cpus: "0.25"
+          memory: 256M
+    depends_on:
+      init-opensearch:
+        condition: service_completed_successfully
 
 networks:
   nginx-proxy:
