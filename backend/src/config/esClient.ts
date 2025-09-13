@@ -1,37 +1,33 @@
 import { Client } from "@opensearch-project/opensearch";
-import { defaultProvider } from "@aws-sdk/credential-provider-node";
-import { AwsSigv4Signer } from "@opensearch-project/opensearch/aws";
 
 let esClient: Client;
 if (process.env.NODE_ENV === "production") {
+  if (
+    !process.env.OPENSEARCH_URL ||
+    !process.env.OPENSEARCH_USERNAME ||
+    !process.env.OPENSEARCH_PASSWORD
+  ) {
+    throw new Error(
+      "缺少 OpenSearch 配置: 需要 OPENSEARCH_URL, OPENSEARCH_USERNAME, OPENSEARCH_PASSWORD"
+    );
+  }
+
   esClient = new Client({
-    ...AwsSigv4Signer({
-      region: process.env.AWS_REGION!,
-      service: "es",
-      getCredentials: async () => {
-        const provider = defaultProvider();
-        const creds = await provider();
-        return {
-          accessKeyId: creds.accessKeyId,
-          secretAccessKey: creds.secretAccessKey,
-          sessionToken: creds.sessionToken,
-        };
-      },
-    }),
-    node: process.env.OPENSEARCH_URL!,
-    requestTimeout: 30000,
-    //     auth: {
-    //       username: process.env.OPENSEARCH_USERNAME,
-    //       password: process.env.OPENSEARCH_PASSWORD,
-    //     },
+    node: process.env.OPENSEARCH_URL,
+    auth: {
+      username: process.env.OPENSEARCH_USERNAME,
+      password: process.env.OPENSEARCH_PASSWORD,
+    },
     ssl: {
-      rejectUnauthorized: true,
+      rejectUnauthorized: true, // 確保 SSL 證書驗證
     },
     headers: {
       "Content-Type": "application/json",
     },
+    requestTimeout: 30000,
   });
-  console.log("✓ 成功連線到 OpenSearch (Public Access, 無 FGAC)");
+
+  console.log("✓ 成功連線到 OpenSearch (VPC Access, FGAC 啟用)");
 } else {
   esClient = new Client({
     node: process.env.ELASTICSEARCH_URL || "http://localhost:9200",

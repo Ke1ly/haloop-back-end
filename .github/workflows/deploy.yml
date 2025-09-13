@@ -74,12 +74,16 @@ jobs:
           JWT_SECRET=$(aws ssm get-parameter --name "/app/jwt-secret" --with-decryption --query "Parameter.Value" --output text)
           OPENCAGE_API_KEY=$(aws ssm get-parameter --name "/app/opencage-api-key" --with-decryption --query "Parameter.Value" --output text)
           S3_BUCKET_NAME=$(aws ssm get-parameter --name "/app/s3-bucket-name" --with-decryption --query "Parameter.Value" --output text)
+          OPENSEARCH_PASSWORD=$(aws ssm get-parameter --name "/app/opensearch-password" --with-decryption --query "Parameter.Value" --output text)
+          OPENSEARCH_USERNAME=$(aws ssm get-parameter --name "/app/opensearch-username" --with-decryption --query "Parameter.Value" --output text)
 
           echo "DATABASE_URL=$DATABASE_URL" >> .env.production
           echo "REDIS_PASSWORD=$REDIS_PASSWORD" >> .env.production
           echo "JWT_SECRET=$JWT_SECRET" >> .env.production
           echo "OPENCAGE_API_KEY=$OPENCAGE_API_KEY" >> .env.production
           echo "S3_BUCKET_NAME=$S3_BUCKET_NAME" >> .env.production
+          echo "OPENSEARCH_USERNAME=$OPENSEARCH_USERNAME" >> .env.production
+          echo "OPENSEARCH_PASSWORD=$OPENSEARCH_PASSWORD" >> .env.production
 
       - name: Copy files to EC2
         uses: appleboy/scp-action@v0.1.4
