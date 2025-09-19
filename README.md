@@ -65,3 +65,4 @@ AWS-native integration with VPC networking and security groups, leveraging S3 + 
 ⦁ CSS
 
 ## Architecture Design
+![image](https://github.com/Ke1ly/haloop-back-end/blob/main/docs/images/architecture-design.png)
