@@ -1,13 +1,14 @@
 import { Socket, Server } from "socket.io";
 import { addUserSocket, removeUserSocket } from "./socketManager.js";
+import { CustomSocket } from "../socket/socketManager.js";
 
 export const connectionHandlers = (
-  socket: Socket,
+  socket: CustomSocket,
   io: Server,
   userSocketMap: Map<string, Set<string>>
 ) => {
-  const userId = (socket as any).userId;
-  const userType = (socket as any).userType;
+  const userId = socket.userId;
+  const userType = socket.userType;
 
   // 加入用戶連線映射
   addUserSocket(userId, socket.id);

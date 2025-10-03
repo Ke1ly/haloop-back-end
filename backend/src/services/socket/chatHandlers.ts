@@ -2,8 +2,12 @@ import { Socket, Server } from "socket.io";
 import { getUserSockets } from "./socketManager.js";
 import prisma from "../../config/database.js";
 
-export const chatHandlers = (socket: Socket, io: Server) => {
-  const userId = (socket as any).userId;
+//types
+import { Message } from "../../types/Chat.js";
+import { CustomSocket } from "../socket/socketManager.js";
+
+export const chatHandlers = (socket: CustomSocket, io: Server) => {
+  const userId = socket.userId;
 
   // 加入對話房間
   socket.on("join_conversation", async (data: { conversationId: string }) => {
@@ -19,7 +23,10 @@ export const chatHandlers = (socket: Socket, io: Server) => {
     const unreadCount = await markMessagesAsRead(userId, conversationId);
     socket.emit("unread_update", { conversationId, unreadCount });
 
-    async function markMessagesAsRead(userId: string, conversationId: string) {
+    async function markMessagesAsRead(
+      userId: string,
+      conversationId: string
+    ): Promise<number> {
       await prisma.message.updateMany({
         where: {
           conversationId,
@@ -72,7 +79,7 @@ export const chatHandlers = (socket: Socket, io: Server) => {
         const { conversationId, content, messageType = "TEXT" } = data;
 
         // 建立訊息
-        const message = await prisma.message.create({
+        const message: Message = await prisma.message.create({
           data: {
             conversationId,
             senderId: userId,
@@ -84,7 +91,6 @@ export const chatHandlers = (socket: Socket, io: Server) => {
               select: {
                 id: true,
                 username: true,
-                avatar: true,
               },
             },
           },
@@ -99,7 +105,10 @@ export const chatHandlers = (socket: Socket, io: Server) => {
         // 查詢收訊方
         const conversation = await prisma.conversation.findUnique({
           where: { id: conversationId },
-          include: { participants: true },
+          select: {
+            id: true,
+            participants: { select: { userId: true } },
+          },
         });
         let recipientId: string | undefined;
         if (conversation) {
@@ -183,10 +192,13 @@ async function isUserInRoom(
 async function validateConversationAccess(
   userId: string,
   conversationId: string
-) {
+): Promise<boolean> {
   const conversation = await prisma.conversation.findUnique({
     where: { id: conversationId },
-    include: { participants: true },
+    select: {
+      id: true,
+      participants: { select: { userId: true } },
+    },
   });
   if (
     !conversation ||

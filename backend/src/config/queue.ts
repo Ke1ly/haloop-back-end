@@ -1,11 +1,17 @@
-import { Queue, Worker } from "bullmq";
 import { Redis } from "ioredis";
-import { Server } from "socket.io";
-import { createAdapter } from "@socket.io/redis-adapter";
 import { esClient } from "../config/esClient.js";
-import { SUBSCRIPTIONS_PERCOLATOR_INDEX } from "../services/elasticsearch/elasticsearchManager.js";
 import prisma from "../config/database.js";
+
+//services&utils
+import { createAdapter } from "@socket.io/redis-adapter";
+import { Server } from "socket.io";
+import { Queue, Worker } from "bullmq";
+
+//types
+import { SUBSCRIPTIONS_PERCOLATOR_INDEX } from "../services/elasticsearch/elasticsearchManager.js";
 // import { sendSocketNotificationToHelper } from "../services/notificationService.js";
+import { formattedWorkPost } from "../types/Work.js";
+import { MatchResult, Notification } from "../types/Subscription.js";
 
 const redisConfig = {
   host: process.env.REDIS_HOST,
@@ -87,9 +93,19 @@ if (process.argv.includes("--worker") || process.env.NODE_MODE === "worker") {
 }
 
 export function initNotificationWorker() {
-  new Worker(
+  const worker = new Worker(
     "notificationQueue",
     async (job) => {
+      // 擴展多個 worker 時用，防止同一個 Job 被多個 Worker 同時拾取重複執行
+      // const jobId = job.id;
+      // const lockKey = `job:${jobId}:processing`;
+      // const locked = await connection.setnx(lockKey, "1");
+      // if (!locked) {
+      //   console.log(`Job ${jobId} 已處理或重複，丟棄`);
+      //   return;
+      // }
+      // await connection.expire(lockKey, 3600); // 1 小時失效
+
       const { post, unitName } = job.data;
       console.log(`Processing notifications for post ${post.id}`);
 
@@ -105,8 +121,11 @@ export function initNotificationWorker() {
         });
 
         console.log(
-          `found ${matches.length} matches， ${matches} ，存入資料庫，準備發送通知`
+          `found ${matches.length} matches，存入資料庫，準備發送通知`
         );
+        matches.forEach((m) => {
+          console.log(m.helperId, m.subscriptionId);
+        });
         const matchedHelperIds = [
           ...new Set(matches.map((match) => match.helperId)),
         ];
@@ -118,19 +137,37 @@ export function initNotificationWorker() {
           );
         }
       }
+      // await connection.del(lockKey);
     },
     { connection, concurrency: 2, limiter: { max: 100, duration: 60000 } }
-  ).on("error", (error) => {
+  );
+
+  worker.on("failed", async (job, err) => {
+    if (!job) {
+      console.error("Job 未定義，無法移至死信佇列，錯誤:", err);
+      return;
+    }
+
+    console.error(`Job ${job.id} 失敗:`, err);
+    // 將失敗 Job 移至死信佇列
+    try {
+      await job.moveToFailed(err, "worker-token", false);
+    } catch (moveError) {
+      console.error(`移動 Job ${job.id} 至死信佇列失敗:`, moveError);
+    }
+  });
+
+  worker.on("error", (error) => {
     console.error("Worker error:", error);
   });
 
   setInterval(async () => {
-    await notificationQueue.clean(24 * 3600 * 1000, 1000, "completed");
-  }, 24 * 3600 * 1000);
+    await notificationQueue.clean(30 * 24 * 3600 * 1000, 1000, "completed"); // 清除 30 天前的 completed Job
+  }, 24 * 3600 * 1000); // 每天執行一次 clean
   console.log("Notification Worker started");
 }
 
-async function getMatchingSubscriptions(formattedWorkPost: any) {
+async function getMatchingSubscriptions(formattedWorkPost: formattedWorkPost) {
   try {
     const response = await esClient.search({
       index: SUBSCRIPTIONS_PERCOLATOR_INDEX,
@@ -144,7 +181,7 @@ async function getMatchingSubscriptions(formattedWorkPost: any) {
       },
     });
 
-    const matches = response.body.hits.hits.map((hit: any) => ({
+    const matches: MatchResult[] = response.body.hits.hits.map((hit: any) => ({
       helperId: hit._source.helper_profile_id,
       subscriptionId: hit._source.subscription_id,
     }));
@@ -214,8 +251,7 @@ async function sendBatchNotificationsFromWorker(
   workPost: any,
   unitName: string
 ) {
-  const notification = {
-    id: `workpost_${workPost.id}_${Date.now()}`,
+  const notificationBase = {
     title: "新商家符合您的條件！",
     message: `${unitName} 發佈了新貼文：${workPost.positionName}`,
     data: {
@@ -223,35 +259,51 @@ async function sendBatchNotificationsFromWorker(
       unitName: unitName,
       positionName: workPost.positionName,
     },
-    timestamp: new Date().toISOString(),
   };
 
-  // 取得 helper 對應的 user
+  // 取得 helper 對應的 user // 未來如果 helperIds 多，加分頁 { take: 100, skip: offset }
   const helperProfiles = await prisma.helperProfile.findMany({
     where: { id: { in: helperIds } },
     select: { id: true, userId: true },
   });
 
+  // 批量插入資料
+  const notificationsToCreate = helperProfiles.map((profile) => ({
+    helperProfileId: profile.id,
+    title: notificationBase.title,
+    message: notificationBase.message,
+    data: notificationBase.data,
+    isRead: false,
+  }));
+
+  await prisma.notification.createMany({
+    data: notificationsToCreate,
+  });
+
+  // 批量計算所有 helperProfileId 的未讀數
+  const helperProfileIds = helperProfiles.map((p) => p.id);
+  const unreadCounts = await prisma.notification.groupBy({
+    by: ["helperProfileId"],
+    _count: { id: true },
+    where: {
+      helperProfileId: { in: helperProfileIds },
+      isRead: false,
+    },
+  });
+
+  // 建立 map 快速查找未讀數
+  const unreadMap = new Map(
+    unreadCounts.map((c) => [c.helperProfileId, c._count.id || 0])
+  );
+
+  // 發送通知和未讀更新
   const promises = helperProfiles.map(async (profile) => {
     try {
-      // 儲存通知到資料庫
-      await prisma.notification.create({
-        data: {
-          helperProfileId: profile.id,
-          title: notification.title,
-          message: notification.message,
-          data: notification.data,
-          isRead: false,
-        },
-      });
-
-      // 計算未讀數量
-      const unreadCount = await prisma.notification.count({
-        where: {
-          helperProfileId: profile.id,
-          isRead: false,
-        },
-      });
+      const notification: Notification = {
+        id: `workpost_${workPost.id}_${Date.now()}`,
+        ...notificationBase,
+        timestamp: new Date().toISOString(),
+      };
 
       // 透過 Worker Socket.IO 發送通知到房間
       await sendNotificationFromWorker(
@@ -261,6 +313,7 @@ async function sendBatchNotificationsFromWorker(
       );
 
       // 更新未讀數量
+      const unreadCount = unreadMap.get(profile.id) || 0;
       await sendNotificationFromWorker(profile.userId, "unread_count", {
         count: unreadCount,
       });

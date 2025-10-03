@@ -1,12 +1,26 @@
 import prisma from "../config/database.js";
 import express, { Request, Response } from "express";
+
 const router = express.Router();
+
+//middlewares
 import { authorizeRole, AuthenticatedRequest } from "../middlewares/auth.js";
-import { HostProfile } from "../types/User.js";
 import {
   validatePatchProfile,
   handleValidationErrors,
 } from "../middlewares/validation.js";
+
+//types
+import {
+  UserUpdateData,
+  HostProfileUpdateData,
+  HelperProfileUpdateData,
+  HostProfile,
+  User,
+  UserType,
+} from "../types/User.js";
+import { GeocodeResult } from "../types/Utils.js";
+import { geocodeAddress } from "../utils/geo.js";
 
 router.patch(
   "/host",
@@ -28,11 +42,13 @@ router.patch(
         city,
       } = req.body;
 
-      const userDataToUpdate: any = {};
+      // 建立要更新的 user 資料
+      const userDataToUpdate: UserUpdateData = {};
       if (email !== undefined) userDataToUpdate.email = email;
       if (realname !== undefined) userDataToUpdate.realname = realname;
       if (username !== undefined) userDataToUpdate.username = username;
 
+      // 檢查 email ,username 是否已被其他用戶使用
       if (email || username) {
         const existingUser = await prisma.user.findFirst({
           where: {
@@ -53,22 +69,14 @@ router.patch(
         }
       }
 
-      const updatedUser = Object.keys(userDataToUpdate).length
-        ? await prisma.user.update({
-            where: { id: userId },
-            data: userDataToUpdate,
-          })
-        : null;
-
-      const hostProfileToUpdate: any = {};
-
+      // 建立要更新的 hostProfile 資料
+      const hostProfileToUpdate: HostProfileUpdateData = {};
       if (unitName !== undefined) hostProfileToUpdate.unitName = unitName;
       if (unitDescription !== undefined)
         hostProfileToUpdate.unitDescription = unitDescription;
       if (address !== undefined) {
         hostProfileToUpdate.address = address;
-
-        const geo = await geocodeAddress(address);
+        const geo: GeocodeResult = await geocodeAddress(address);
         hostProfileToUpdate.latitude = geo.latitude;
         hostProfileToUpdate.longitude = geo.longitude;
         hostProfileToUpdate.district = geo.district;
@@ -77,28 +85,62 @@ router.patch(
         hostProfileToUpdate.city = city;
       }
 
+      //確認有已存在的 hostprofile 可做後續更新
       const existProfileData = await prisma.hostProfile.findUnique({
         where: { userId: userId },
       });
-      let updatedHostProfile = null;
 
-      if (existProfileData) {
-        if (Object.keys(hostProfileToUpdate).length) {
-          updatedHostProfile = await prisma.hostProfile.update({
-            where: { userId: userId },
-            data: hostProfileToUpdate,
-          });
+      //transaction 確保兩個資料表更新
+      const { updatedUser, updatedHostProfile } = await prisma.$transaction(
+        async (
+          tx
+        ): Promise<{
+          updatedUser: any;
+          updatedHostProfile: any;
+        }> => {
+          let newUpdatedUser: any = null;
+          if (Object.keys(userDataToUpdate).length) {
+            newUpdatedUser = await tx.user.update({
+              where: { id: userId },
+              data: userDataToUpdate,
+            });
+          }
+          let newUpdatedHostProfile: any = null;
+          if (existProfileData && Object.keys(hostProfileToUpdate).length) {
+            newUpdatedHostProfile = await tx.hostProfile.update({
+              where: { userId },
+              data: hostProfileToUpdate,
+            });
+          }
+          // else if (Object.keys(hostProfileToUpdate).length) {
+          //   newUpdatedHostProfile = await tx.hostProfile.create({
+          //     data: { userId, ...hostProfileToUpdate },
+          //   });
+          // }
+          return {
+            updatedUser: newUpdatedUser,
+            updatedHostProfile: newUpdatedHostProfile,
+          };
         }
-      } else {
-        if (Object.keys(hostProfileToUpdate).length) {
-          updatedHostProfile = await prisma.hostProfile.create({
-            data: {
-              userId: userId,
-              ...hostProfileToUpdate,
-            },
-          });
-        }
-      }
+      );
+
+      // if (existProfileData) {
+      //   if (Object.keys(hostProfileToUpdate).length) {
+      //     updatedHostProfile = await prisma.hostProfile.update({
+      //       where: { userId: userId },
+      //       data: hostProfileToUpdate,
+      //     });
+      //   }
+      // } else {
+      //   if (Object.keys(hostProfileToUpdate).length) {
+      //     updatedHostProfile = await prisma.hostProfile.create({
+      //       data: {
+      //         userId: userId,
+      //         ...hostProfileToUpdate,
+      //       },
+      //     });
+      //   }
+      // }
 
       return void res.status(200).json({
         success: true,
@@ -128,7 +170,7 @@ router.patch(
     try {
       const { email, realname, username, bio } = req.body;
 
-      const userDataToUpdate: any = {};
+      const userDataToUpdate: UserUpdateData = {};
       if (email !== undefined) userDataToUpdate.email = email;
       if (realname !== undefined) userDataToUpdate.realname = realname;
       if (username !== undefined) userDataToUpdate.username = username;
@@ -154,22 +196,66 @@ router.patch(
         }
       }
 
-      const updatedUser = Object.keys(userDataToUpdate).length
-        ? await prisma.user.update({
-            where: { id: userId },
-            data: userDataToUpdate,
-          })
-        : null;
-
-      const helperProfileToUpdate: any = {};
+      // 建立要更新的 hostProfile 資料
+      const helperProfileToUpdate: HelperProfileUpdateData = {};
       if (bio !== undefined) helperProfileToUpdate.bio = bio;
 
-      const updatedHelperProfile = Object.keys(helperProfileToUpdate).length
-        ? await prisma.helperProfile.update({
-            where: { userId },
-            data: helperProfileToUpdate,
-          })
-        : null;
+      //確認有已存在的 hostprofile 可做後續更新
+      const existProfileData = await prisma.helperProfile.findUnique({
+        where: { userId: userId },
+      });
+
+      //transaction 確保兩個資料表更新
+      const { updatedUser, updatedHelperProfile } = await prisma.$transaction(
+        async (
+          tx
+        ): Promise<{
+          updatedUser: any;
+          updatedHelperProfile: any;
+        }> => {
+          let newUpdatedUser: any = null;
+          if (Object.keys(userDataToUpdate).length) {
+            newUpdatedUser = await tx.user.update({
+              where: { id: userId },
+              data: userDataToUpdate,
+            });
+          }
+
+          let newupdatedHelperProfile: any = null;
+          if (existProfileData && Object.keys(helperProfileToUpdate).length) {
+            newupdatedHelperProfile = await tx.helperProfile.update({
+              where: { userId },
+              data: helperProfileToUpdate,
+            });
+          }
+          // else if (Object.keys(helperProfileToUpdate).length) {
+          //   newupdatedHelperProfile = await tx.hostProfile.create({
+          //     data: { userId, ...helperProfileToUpdate },
+          //   });
+          // }
+          return {
+            updatedUser: newUpdatedUser,
+            updatedHelperProfile: newupdatedHelperProfile,
+          };
+        }
+      );
+
+      // const updatedUser = Object.keys(userDataToUpdate).length
+      //   ? await prisma.user.update({
+      //       where: { id: userId },
+      //       data: userDataToUpdate,
+      //     })
+      //   : null;
+
+      // const helperProfileToUpdate: any = {};
+      // if (bio !== undefined) helperProfileToUpdate.bio = bio;
+
+      // const updatedHelperProfile = Object.keys(helperProfileToUpdate).length
+      //   ? await prisma.helperProfile.update({
+      //       where: { userId },
+      //       data: helperProfileToUpdate,
+      //     })
+      //   : null;
 
       return void res.status(200).json({
         success: true,
@@ -197,9 +283,20 @@ router.get(
 
     const profileData = await prisma.hostProfile.findUnique({
       where: { userId: userId },
+      select: {
+        unitName: true,
+        address: true,
+        city: true,
+        unitDescription: true,
+      },
     });
     const userData = await prisma.user.findUnique({
       where: { id: userId },
+      select: {
+        username: true,
+        realname: true,
+        email: true,
+      },
     });
     res.status(200).json({
       user: userData,
@@ -217,9 +314,17 @@ router.get(
 
     const profileData = await prisma.helperProfile.findUnique({
       where: { userId: userId },
+      select: {
+        bio: true,
+      },
     });
     const userData = await prisma.user.findUnique({
       where: { id: userId },
+      select: {
+        username: true,
+        realname: true,
+        email: true,
+      },
     });
     res.status(200).json({
       user: userData,
@@ -227,40 +332,5 @@ router.get(
     });
   }
 );
-
-async function geocodeAddress(address: string) {
-  const apiKey = process.env.OPENCAGE_API_KEY;
-  const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
-    address
-  )}&key=${apiKey}&language=zh-TW`;
-
-  const response = await fetch(url);
-  const data = (await response.json()) as { results: any[] };
-
-  if (!data.results || data.results.length === 0) {
-    console.warn(`Geocoding failed for: ${address}`);
-    return {
-      latitude: null,
-      longitude: null,
-      city: null,
-      district: null,
-      note: "Geocoding failed",
-    };
-  }
-
-  const result = data.results[0];
-
-  const lat = result.geometry.lat;
-  const lng = result.geometry.lng;
-  const components = result.components;
-
-  return {
-    latitude: lat,
-    longitude: lng,
-    city: components.city || components.county || components.town,
-    district:
-      components.city_district || components.suburb || components.village,
-  };
-}
 
 export default router;

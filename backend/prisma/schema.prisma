@@ -33,25 +33,29 @@ model WorkPost {
   experiences         Experience[]       @relation("WorkPostPositionExperiences")
   environments        Environment[]      @relation("WorkPostPositionEnvironments")
   benefitsDescription String
-  favoriteBy          Favorite[]
-  availabilities      Availability[]
-  application         Application[]
+  // favoriteBy          Favorite[]
+  // availabilities      Availability[]
+  // application         Application[]
   matchedSubscriptions MatchedWorkPost[]
   isActive            Boolean            @default(true)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
 
+ @@index([startDate])
+ @@index([endDate])
+//  @@index([averageWorkHours])
+//  @@index([minDuration])
   @@map("work_posts")
 }
 
-model Availability {
-  id                    String   @id @default(cuid())
-  workPostId            String
-  date                  DateTime
-  maxRecruitCount       Int
-  remainingRecruitCount Int
-  workPost              WorkPost @relation(fields: [workPostId], references: [id])
-}
+// model Availability {
+//   id                    String   @id @default(cuid())
+//   workPostId            String
+//   date                  DateTime
+//   maxRecruitCount       Int
+//   remainingRecruitCount Int
+//   workPost              WorkPost @relation(fields: [workPostId], references: [id])
+// }
 
 model WorkPostImage {
   id         String   @id @default(cuid())
@@ -124,10 +128,10 @@ model User {
   password      String
   realname      String
   username      String                    @unique
-  phone         String?                   @unique
-  avatar        String?
+  // phone         String?                   @unique
+  // avatar        String?
   userType      UserType                  @default(HELPER)
-  isVerified    Boolean                   @default(false)
+  // isVerified    Boolean                   @default(false)
   createdAt     DateTime                  @default(now())
   updatedAt     DateTime                  @updatedAt
   lastLoginAt   DateTime?
@@ -167,16 +171,17 @@ model HelperProfile {
   userId        String               @unique
   user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
   bio           String?
-  birthDate     DateTime?
-  gender        Gender?
-  favorites     Favorite[]
+  // birthDate     DateTime?
+  // gender        Gender?
+  // favorites     Favorite[]
   subcriptions  FilterSubscription[]
   notifications Notification[]
-  applications  Application[]
+  // applications  Application[]
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
   @@map("helper_profiles")
+  @@index([userId])//Socket.IO 初始化和推薦 cron job 高頻執行
 }
 
 model Notification {
@@ -197,38 +202,38 @@ model Notification {
   @@map("notifications")
 }
 
-enum Gender {
-  MALE
-  FEMALE
-  OTHER
-}
+// enum Gender {
+//   MALE
+//   FEMALE
+//   OTHER
+// }
 
-model Favorite {
-  id              String        @id @default(cuid())
-  helperProfileId String
-  workPostId      String
-  helperProfile   HelperProfile @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
-  workPost        WorkPost      @relation(fields: [workPostId], references: [id], onDelete: Cascade)
-  createdAt       DateTime      @default(now())
+// model Favorite {
+//   id              String        @id @default(cuid())
+//   helperProfileId String
+//   workPostId      String
+//   helperProfile   HelperProfile @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
+//   workPost        WorkPost      @relation(fields: [workPostId], references: [id], onDelete: Cascade)
+//   createdAt       DateTime      @default(now())
 
-  @@unique([helperProfileId, workPostId])
-  @@map("favorites")
-}
+//   @@unique([helperProfileId, workPostId])
+//   @@map("favorites")
+// }
 
-model Application {
-  id              String   @id @default(cuid())
-  helperProfileId String
-  workPostId      String
-  startDate       DateTime
-  endDate         DateTime
-  createdAt       DateTime @default(now())
+// model Application {
+//   id              String   @id @default(cuid())
+//   helperProfileId String
+//   workPostId      String
+//   startDate       DateTime
+//   endDate         DateTime
+//   createdAt       DateTime @default(now())
 
-  workPost      WorkPost      @relation(fields: [workPostId], references: [id])
-  helperProfile HelperProfile @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
+//   workPost      WorkPost      @relation(fields: [workPostId], references: [id])
+//   helperProfile HelperProfile @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
 
-  @@unique([helperProfileId, workPostId])
-  @@map("applications")
-}
+//   @@unique([helperProfileId, workPostId])
+//   @@map("applications")
+// }
 
 model FilterSubscription {
   id                 String             @id @default(cuid())
@@ -296,6 +301,7 @@ model ConversationParticipant {
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([conversationId, userId])
+  @@index([userId])
   @@map("conversation_participants")
 }
 
@@ -305,7 +311,7 @@ model Message {
   senderId       String
   content        String
   messageType    MessageType @default(TEXT)
-  attachments    Json?
+  // attachments    Json?
   isRead         Boolean     @default(false)
   createdAt      DateTime    @default(now())
 
@@ -313,6 +319,8 @@ model Message {
   sender       User         @relation(fields: [senderId], references: [id], onDelete: Cascade)
 
   @@map("messages")
+  @@index([conversationId, createdAt])
+  @@index([conversationId, senderId, isRead])
 }
 
 enum ConversationType {
@@ -324,5 +332,4 @@ enum MessageType {
   TEXT
   IMAGE
   FILE
-  SYSTEM
 }

@@ -1,10 +1,21 @@
 import prisma from "../config/database.js";
 import express, { Request, Response } from "express";
 const router = express.Router();
+
+//middlewares
 import { authorizeRole, AuthenticatedRequest } from "../middlewares/auth.js";
-import { WorkPostFilterInput } from "../types/Work.js";
+
+//types
+import {
+  WorkPostFilterInput,
+  RawWorkPost,
+  formattedWorkPost,
+} from "../types/Work.js";
+
+//services&utils
 import { indexNewWorkPost } from "../services/elasticsearch/recommendation.js";
 import { notificationQueue } from "../config/queue.js";
+import { formatWorkPost } from "../utils/formatWorkPost.js";
 
 router.post(
   "/",
@@ -41,8 +52,7 @@ router.post(
         benefitsDescription,
       } = req.body;
 
-      // 使用 transaction 確保資料一致性
-      const newWorkPost = await prisma.$transaction(async (tx) => {
+      const newWorkPost: RawWorkPost = await prisma.$transaction(async (tx) => {
         const modelMap = {
           positionCategory: tx.positionCategory,
           meal: tx.meal,
@@ -89,26 +99,7 @@ router.post(
           upsertNames("accommodation", accommodations),
         ]);
 
-        //生成可選日期資料
-        function getDaysBetween(start: string, end: string): string[] {
-          const result: string[] = [];
-          let startDate = new Date(start);
-          const endDate = new Date(end);
-          startDate.setHours(0, 0, 0, 0);
-          endDate.setHours(0, 0, 0, 0);
-
-          while (startDate <= endDate) {
-            const dateStr = startDate.toISOString();
-            result.push(dateStr);
-
-            startDate.setDate(startDate.getDate() + 1);
-          }
-
-          return result;
-        }
-        const days = getDaysBetween(startDate, endDate);
-
-        const newWorkPost = await tx.workPost.create({
+        const newWorkPost: RawWorkPost = await tx.workPost.create({
           data: {
             unitId: hostProfile.id,
             startDate: new Date(startDate),
@@ -146,15 +137,6 @@ router.post(
                     },
                   }
                 : undefined,
-            availabilities: {
-              createMany: {
-                data: days.map((date) => ({
-                  date,
-                  maxRecruitCount: recruitCount,
-                  remainingRecruitCount: recruitCount,
-                })),
-              },
-            },
           },
           select: {
             id: true,
@@ -170,13 +152,6 @@ router.post(
             environments: { select: { name: true } },
             accommodations: { select: { name: true } },
             images: { select: { imageUrl: true } },
-            availabilities: {
-              select: {
-                date: true,
-                maxRecruitCount: true,
-                remainingRecruitCount: true,
-              },
-            },
             unit: {
               select: {
                 city: true,
@@ -187,15 +162,16 @@ router.post(
 
         return newWorkPost;
       });
+
       res.status(201).json({ newWorkPost: newWorkPost });
-      const formattedWorkPost = formatWorkPost(newWorkPost);
-      // 同步至 Elasticsearch
+      const formattedWorkPost: formattedWorkPost = formatWorkPost(newWorkPost);
+
+      // 同步至 Elasticsearch，並交給 queue 執行訂閱比對
       try {
         await indexNewWorkPost(newWorkPost);
         await enqueueNotificationJob(formattedWorkPost, hostProfile.unitName);
       } catch (error) {
         console.error("Error syncing new work post:", error);
-
         // await redis.lpush("failed:workposts", newWorkPost.id); // 記錄補償
       }
     } catch (error) {
@@ -219,6 +195,7 @@ router.get("/", async (req: Request, res: Response) => {
     experiences,
     environments,
   }: WorkPostFilterInput = req.query;
+
   const filters: any = {};
   if (city) {
     filters.unit = {
@@ -318,7 +295,7 @@ router.get("/", async (req: Request, res: Response) => {
     };
   }
 
-  const rawWorkPosts = await prisma.workPost.findMany({
+  const rawWorkPosts: RawWorkPost[] = await prisma.workPost.findMany({
     where: filters,
     select: {
       id: true,
@@ -347,26 +324,38 @@ router.get("/", async (req: Request, res: Response) => {
       },
     },
   });
-  const formattedWorkPosts = rawWorkPosts.map(formatWorkPost);
+  const formattedWorkPosts: formattedWorkPost[] =
+    rawWorkPosts.map(formatWorkPost);
   res.status(200).json({ formattedWorkPosts });
 });
 
-function formatWorkPost(post: any) {
-  return {
-    ...post,
-    images: (post.images ?? []).map((img: any) => img.imageUrl),
-    positionCategories: (post.positionCategories ?? []).map(
-      (cat: any) => cat.name
-    ),
-    accommodations: (post.accommodations ?? []).map((acc: any) => acc.name),
-    meals: (post.meals ?? []).map((meal: any) => meal.name),
-    experiences: (post.experiences ?? []).map((exp: any) => exp.name),
-    environments: (post.environments ?? []).map((env: any) => env.name),
-  };
-}
+// function formatWorkPost(post: RawWorkPost): formattedWorkPost {
+//   return {
+//     ...post,
+//     images: (post.images ?? []).map((img: any) => img.imageUrl),
+//     positionCategories: (post.positionCategories ?? []).map(
+//       (cat: any) => cat.name
+//     ),
+//     accommodations: (post.accommodations ?? []).map((acc: any) => acc.name),
+//     requirements: (post.requirements ?? []).map((req: any) => req.name),
+//     meals: (post.meals ?? []).map((meal: any) => meal.name),
+//     experiences: (post.experiences ?? []).map((exp: any) => exp.name),
+//     environments: (post.environments ?? []).map((env: any) => env.name),
+//   };
+// }
 
-async function enqueueNotificationJob(post: any, unitName: string) {
-  await notificationQueue.add("notifyForPost", { post, unitName });
+async function enqueueNotificationJob(
+  post: formattedWorkPost,
+  unitName: string
+) {
+  await notificationQueue.add(
+    "notifyForPost",
+    { post, unitName },
+    {
+      attempts: 3,
+      backoff: { type: "exponential", delay: 1000 },
+    }
+  );
   console.log(`Enqueued notification job for post ${post.id}`);
 }
 

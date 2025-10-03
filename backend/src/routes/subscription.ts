@@ -1,15 +1,22 @@
 import prisma from "../config/database.js";
+import redis from "../config/redis.js";
 import express, { Request, Response } from "express";
 const router = express.Router();
+
+//middlewares
 import { authorizeRole, AuthenticatedRequest } from "../middlewares/auth.js";
+
+//types
 import {
-  WorkPostForRecommendation,
-  ScoredPost,
-  FilterSubscription,
-  Subscription,
-} from "../types/Work.js";
-import redis from "../config/redis.js";
+  FilterInput,
+  BaseSubscription,
+  MatchedWorkPost,
+} from "../types/Subscription.js";
+import { RawWorkPost, formattedWorkPost } from "../types/Work.js";
+
+//services & utils
 import { indexSubscriptionAsPercolator } from "../services/elasticsearch/elasticsearchManager.js";
+import { formatWorkPost } from "../utils/formatWorkPost.js";
 
 router.post(
   "/",
@@ -28,7 +35,7 @@ router.post(
       meals = [],
       experiences = [],
       environments = [],
-    } = req.body;
+    }: FilterInput = req.body;
 
     const userId = req.user?.userId;
     if (!userId) {
@@ -234,7 +241,7 @@ router.get(
     const postIds = await redis.zrevrange(key, 0, 4); // 取最新 5 筆
 
     //查詢推薦貼文資料
-    const rawWorkPosts = await prisma.workPost.findMany({
+    const rawWorkPosts: RawWorkPost[] = await prisma.workPost.findMany({
       where: {
         id: { in: postIds },
       },
@@ -260,26 +267,26 @@ router.get(
             unitName: true,
             latitude: true,
             longitude: true,
-            address: true,
           },
         },
       },
     });
-    const formattedWorkPosts = rawWorkPosts.map(formatWorkPost);
+    const formattedWorkPosts: formattedWorkPost[] =
+      rawWorkPosts.map(formatWorkPost);
 
-    function formatWorkPost(post: any) {
-      return {
-        ...post,
-        images: (post.images ?? []).map((img: any) => img.imageUrl),
-        positionCategories: (post.positionCategories ?? []).map(
-          (cat: any) => cat.name
-        ),
-        accommodations: (post.accommodations ?? []).map((acc: any) => acc.name),
-        meals: (post.meals ?? []).map((meal: any) => meal.name),
-        experiences: (post.experiences ?? []).map((exp: any) => exp.name),
-        environments: (post.environments ?? []).map((env: any) => env.name),
-      };
-    }
+    // function formatWorkPost(post: any) {
+    //   return {
+    //     ...post,
+    //     images: (post.images ?? []).map((img: any) => img.imageUrl),
+    //     positionCategories: (post.positionCategories ?? []).map(
+    //       (cat: any) => cat.name
+    //     ),
+    //     accommodations: (post.accommodations ?? []).map((acc: any) => acc.name),
+    //     meals: (post.meals ?? []).map((meal: any) => meal.name),
+    //     experiences: (post.experiences ?? []).map((exp: any) => exp.name),
+    //     environments: (post.environments ?? []).map((env: any) => env.name),
+    //   };
+    // }
 
     res.status(200).json({ formattedWorkPosts });
   }
@@ -307,40 +314,41 @@ router.get(
     }
 
     // 查詢匹配貼文（按匹配時間降序）
-    const matchedPosts = await prisma.matchedWorkPost.findMany({
-      where: { filterSubscriptionId: subscriptionId },
-      include: {
-        workPost: {
-          select: {
-            id: true,
-            positionName: true,
-            averageWorkHours: true,
-            minDuration: true,
-            positionCategories: { select: { name: true } },
-            meals: { select: { name: true } },
-            experiences: { select: { name: true } },
-            environments: { select: { name: true } },
-            accommodations: { select: { name: true } },
-            images: {
-              select: {
-                imageUrl: true,
+    const matchedPosts: MatchedWorkPost[] =
+      await prisma.matchedWorkPost.findMany({
+        where: { filterSubscriptionId: subscriptionId },
+        include: {
+          workPost: {
+            select: {
+              id: true,
+              positionName: true,
+              averageWorkHours: true,
+              minDuration: true,
+              positionCategories: { select: { name: true } },
+              meals: { select: { name: true } },
+              experiences: { select: { name: true } },
+              environments: { select: { name: true } },
+              accommodations: { select: { name: true } },
+              images: {
+                select: {
+                  imageUrl: true,
+                },
               },
-            },
-            unit: {
-              select: {
-                id: true,
-                userId: true,
-                city: true,
-                unitName: true,
-                latitude: true,
-                longitude: true,
+              unit: {
+                select: {
+                  id: true,
+                  userId: true,
+                  city: true,
+                  unitName: true,
+                  latitude: true,
+                  longitude: true,
+                },
               },
             },
           },
         },
-      },
-      orderBy: { matchedAt: "desc" },
-    });
+        orderBy: { matchedAt: "desc" },
+      });
 
     res
       .status(200)

@@ -89,7 +89,6 @@ router.get(
                     select: {
                       id: true,
                       username: true,
-                      avatar: true,
                     },
                   },
                 },
@@ -115,31 +114,63 @@ router.get(
           },
         },
       });
-      const formattedConversations = await Promise.all(
-        conversations.map(async (participant) => {
-          // 計算未讀訊息數量
-          const lastReadAt = participant.lastReadAt || new Date(0); // 如果 lastReadAt 為 null，則使用遠古時間
-          const unreadCount = await prisma.message.count({
-            where: {
-              conversationId: participant.conversationId,
-              senderId: { not: userId },
-              isRead: false,
-              createdAt: { gt: lastReadAt },
-            },
-          });
 
-          return {
-            conversationId: participant.conversation.id,
-            myRole: participant.participantRole,
-            otherUser: participant.conversation.participants[0]?.user,
-            otherUserRole:
-              participant.conversation.participants[0]?.participantRole,
-            lastMessage: participant.conversation.messages[0],
-            lastMessageAt: participant.conversation.lastMessageAt,
-            unreadCount,
-          };
-        })
+      // const formattedConversations = await Promise.all(
+      //   conversations.map(async (participant) => {
+      //     // 計算未讀訊息數量
+      //     const lastReadAt = participant.lastReadAt || new Date(0); // 如果 lastReadAt 為 null，則使用遠古時間
+      //     const unreadCount = await prisma.message.count({
+      //       where: {
+      //         conversationId: participant.conversationId,
+      //         senderId: { not: userId },
+      //         isRead: false,
+      //         createdAt: { gt: lastReadAt },
+      //       },
+      //     });
+
+      //     return {
+      //       conversationId: participant.conversation.id,
+      //       myRole: participant.participantRole,
+      //       otherUser: participant.conversation.participants[0]?.user,
+      //       otherUserRole:
+      //         participant.conversation.participants[0]?.participantRole,
+      //       lastMessage: participant.conversation.messages[0],
+      //       lastMessageAt: participant.conversation.lastMessageAt,
+      //       unreadCount,
+      //     };
+      //   })
+      // );
+
+      // 批量計算所有 conversations 的未讀數（使用一次查詢）
+      const conversationIds = conversations.map((p) => p.conversationId);
+      const unreadCounts = await prisma.message.groupBy({
+        by: ["conversationId"],
+        _count: { id: true },
+        where: {
+          conversationId: { in: conversationIds },
+          senderId: { not: userId },
+          isRead: false,
+          createdAt: { gt: new Date(0) }, // 簡化 lastReadAt 邏輯，或根據需要調整
+        },
+      });
+
+      const unreadMap = new Map(
+        unreadCounts.map((c) => [c.conversationId, c._count.id || 0])
       );
+
+      const formattedConversations = conversations.map((participant) => {
+        const unreadCount = unreadMap.get(participant.conversationId) || 0;
+        return {
+          conversationId: participant.conversation.id,
+          myRole: participant.participantRole,
+          otherUser: participant.conversation.participants[0]?.user,
+          otherUserRole:
+            participant.conversation.participants[0]?.participantRole,
+          lastMessage: participant.conversation.messages[0],
+          lastMessageAt: participant.conversation.lastMessageAt,
+          unreadCount,
+        };
+      });
 
       res.json(formattedConversations);
     } catch (error) {
@@ -164,7 +195,6 @@ router.get(
             select: {
               id: true,
               username: true,
-              avatar: true,
             },
           },
         },

@@ -1,12 +1,33 @@
+import prisma from "../../config/database.js";
+import { Redis } from "ioredis";
+
 import { Server as SocketIOServer, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
+
+//services & utils
 import { createAdapter } from "@socket.io/redis-adapter";
-import { Redis } from "ioredis";
 import jwt from "jsonwebtoken";
-import prisma from "../../config/database.js";
+
+//handlers
 import { chatHandlers } from "./chatHandlers.js";
 import { notificationHandlers } from "./notificationHandlers.js";
 import { connectionHandlers } from "./connectionHandlers.js";
+
+//types
+import { JwtPayload } from "../../types/User.js";
+
+export interface CustomSocket extends Socket {
+  userId: string;
+  userType?: "HELPER" | "HOST";
+  helperProfileId?: string;
+}
+// declare module "socket.io" {
+//   interface Socket {
+//     userId: string;
+//     userType?: "HELPER" | "HOST";
+//     helperProfileId?: string;
+//   }
+// }
 
 // 全域用戶連線映射
 export const userSocketMap = new Map<string, Set<string>>(); // userId -> Set of socketIds
@@ -56,7 +77,7 @@ export const initializeSocket = async (
   }
 
   // JWT 認證中介軟體
-  io.use(async (socket, next) => {
+  io.use(async (socket: Socket, next) => {
     const token = socket.handshake.auth.token;
     if (!token) {
       return next(new Error("請提供 token"));
@@ -66,18 +87,20 @@ export const initializeSocket = async (
       const decoded = jwt.verify(
         token,
         process.env.JWT_SECRET as string
-      ) as any;
-      (socket as any).userId = decoded.userId;
-      (socket as any).userType = decoded.userType;
+      ) as JwtPayload;
+      const customSocket = socket as CustomSocket; // 型別斷言
+      customSocket.userId = decoded.userId;
+      customSocket.userType = decoded.userType;
 
       // 查詢 helperProfileId（僅對 HELPER）
       if (decoded.userType === "HELPER") {
-        const helperProfile = await prisma.helperProfile.findFirst({
-          where: { userId: decoded.userId },
-          select: { id: true },
-        });
+        const helperProfile: { id: string } | null =
+          await prisma.helperProfile.findFirst({
+            where: { userId: decoded.userId },
+            select: { id: true },
+          });
         if (helperProfile) {
-          (socket as any).helperProfileId = helperProfile.id;
+          customSocket.helperProfileId = helperProfile.id;
         } else {
           return next(
             new Error(`未找到對應的 helperProfile，userId: ${decoded.userId}`)
@@ -93,8 +116,9 @@ export const initializeSocket = async (
 
   // 主要連線處理
   io.on("connection", (socket: Socket) => {
-    const userId = (socket as any).userId;
-    const userType = (socket as any).userType;
+    const customSocket = socket as CustomSocket; // 型別斷言
+    const userId = customSocket.userId;
+    const userType = customSocket.userType;
 
     console.log(
       `用戶連線 - ID: ${userId}, 類型: ${userType}, Socket: ${
@@ -106,9 +130,9 @@ export const initializeSocket = async (
     console.log(`用戶 ${userId} 已加入房間 user_${userId}`);
 
     // 註冊所有事件處理器
-    connectionHandlers(socket, io, userSocketMap);
-    chatHandlers(socket, io);
-    notificationHandlers(socket, io);
+    connectionHandlers(customSocket, io, userSocketMap);
+    chatHandlers(customSocket, io);
+    notificationHandlers(customSocket, io);
 
     // 斷線處理
     socket.on("disconnect", (reason) => {

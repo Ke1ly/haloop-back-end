@@ -1,45 +1,57 @@
-import { Socket, Server } from "socket.io";
 import prisma from "../../config/database.js";
+//services & utils
+import { Socket, Server } from "socket.io";
 import { getUserSockets } from "./socketManager.js";
+//types
+import { Notification } from "../../types/Subscription.js";
+import { CustomSocket } from "../socket/socketManager.js";
 
-export const notificationHandlers = async (socket: Socket, io: Server) => {
-  const userId = (socket as any).userId;
-  const helperProfileId = (socket as any).helperProfileId;
+export const notificationHandlers = async (
+  socket: CustomSocket,
+  io: Server
+) => {
+  const userId = socket.userId;
+  const helperProfileId = socket.helperProfileId;
 
   // 獲取未讀通知數量
-  socket.on("get_unread_count", async (callback) => {
-    try {
-      if (!helperProfileId) {
-        const error = {
-          message: `未找到對應的 helperProfile，userId: ${userId}`,
-        };
-        console.error(error.message);
-        socket.emit("error", error);
-        if (typeof callback === "function") {
-          callback(error);
+  socket.on(
+    "get_unread_count",
+    async (
+      callback: (response: { count: number } | { message: string }) => void
+    ) => {
+      try {
+        if (!helperProfileId) {
+          const error = {
+            message: `未找到對應的 helperProfile，userId: ${userId}`,
+          };
+          console.error(error.message);
+          socket.emit("error", error);
+          if (typeof callback === "function") {
+            callback(error);
+          }
+          return;
         }
-        return;
+
+        const count = await prisma.notification.count({
+          where: {
+            helperProfileId: helperProfileId,
+            isRead: false,
+          },
+        });
+
+        const response = { count };
+
+        socket.emit("unread_count", response);
+
+        if (typeof callback === "function") {
+          callback(response);
+        }
+      } catch (error) {
+        console.error("獲取未讀通知數量錯誤:", error);
+        socket.emit("error", { message: "獲取通知失敗" });
       }
-
-      const count = await prisma.notification.count({
-        where: {
-          helperProfileId: helperProfileId,
-          isRead: false,
-        },
-      });
-
-      const response = { count };
-
-      socket.emit("unread_count", response);
-
-      if (typeof callback === "function") {
-        callback(response);
-      }
-    } catch (error) {
-      console.error("獲取未讀通知數量錯誤:", error);
-      socket.emit("error", { message: "獲取通知失敗" });
     }
-  });
+  );
 
   // 標記通知為已讀
   socket.on("mark_notification_read", async (data: { userId: string }) => {
@@ -103,12 +115,21 @@ export const notificationHandlers = async (socket: Socket, io: Server) => {
         }
         const { limit = 20, offset = 0 } = data;
 
-        const notifications = await prisma.notification.findMany({
-          where: { helperProfileId: helperProfileId },
-          orderBy: { createdAt: "desc" },
-          take: limit,
-          skip: offset,
-        });
+        const notifications: Notification[] =
+          await prisma.notification.findMany({
+            where: { helperProfileId: helperProfileId },
+            orderBy: { createdAt: "desc" },
+            take: limit,
+            skip: offset,
+            select: {
+              id: true,
+              title: true,
+              message: true,
+              data: true,
+              createdAt: true,
+              isRead: true,
+            },
+          });
 
         const response = { notifications };
         socket.emit("notifications_list", response);

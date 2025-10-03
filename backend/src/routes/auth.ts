@@ -7,6 +7,8 @@ import {
 } from "../middlewares/validation.js";
 
 import { RegisterRequest, LoginRequest } from "../types/User.js";
+import { GeocodeResult } from "../types/Utils.js";
+import { geocodeAddress } from "../utils/geo.js";
 import prisma from "../config/database.js";
 import bcrypt from "bcryptjs";
 import { UserType } from "@prisma/client";
@@ -31,19 +33,20 @@ router.post(
         address,
         city,
         bio,
-      } = req.body;
+      }: RegisterRequest = req.body;
 
       // 檢查是否已註冊
       const existingUser = await prisma.user.findFirst({
         where: {
           OR: [{ email }, { username }],
         },
+        select: { email: true, username: true },
       });
       if (existingUser) {
         res.status(409).json({
           success: false,
           message:
-            existingUser.email.toLowerCase() === email.toLowerCase()
+            existingUser.email.toLowerCase() === (email as string).toLowerCase()
               ? "這個電子郵件已經註冊過"
               : "此用戶名已經有人使用",
         });
@@ -54,58 +57,115 @@ router.post(
       const saltRounds = 12;
       const hashedPassword = await bcrypt.hash(password, saltRounds);
 
-      // 創建 newUser
-      const newUser = await prisma.user.create({
-        data: {
-          email,
-          username,
-          realname,
-          password: hashedPassword,
-          userType: userType as UserType,
-          isVerified: false,
-          lastLoginAt: null,
-        },
-        select: {
-          id: true,
-          email: true,
-          username: true,
-          userType: true,
-        },
-      });
-
-      if (userType === "HELPER") {
-        const newHelperProfile = await prisma.helperProfile.create({
-          data: {
-            userId: newUser.id,
-            bio,
-          },
-        });
-      } else if (userType === "HOST") {
+      let geo: GeocodeResult;
+      if (userType === "HOST") {
         if (!unitName || !address || !city) {
           return res.status(400).json({
             success: false,
             message: "店家註冊需填寫單位名稱、地址與縣市",
           });
         }
+        geo = await geocodeAddress(address);
+      }
 
-        const geo = await geocodeAddress(address);
-        let latitude = geo.latitude;
-        let longitude = geo.longitude;
-        let district = geo.district;
-
-        const newHostProfile = await prisma.hostProfile.create({
+      // 創建 newUser
+      const newUser = await prisma.$transaction(async (tx) => {
+        const createdUser = await tx.user.create({
           data: {
-            userId: newUser.id,
-            unitName,
-            unitDescription,
-            address,
-            city,
-            latitude,
-            longitude,
-            district,
+            email,
+            username,
+            realname,
+            password: hashedPassword,
+            userType: userType as UserType,
+            lastLoginAt: null,
+          },
+          select: {
+            id: true,
+            email: true,
+            username: true,
+            userType: true,
           },
         });
-      }
+
+        if (userType === "HELPER") {
+          await tx.helperProfile.create({
+            data: { userId: createdUser.id, bio },
+          });
+        } else if (userType === "HOST") {
+          if (!unitName || !address || !city) {
+            return res.status(400).json({
+              success: false,
+              message: "店家註冊需填寫單位名稱、地址與縣市",
+            });
+          }
+          await tx.hostProfile.create({
+            data: {
+              userId: createdUser.id,
+              unitName,
+              unitDescription,
+              address,
+              city,
+              latitude: geo.latitude,
+              longitude: geo.longitude,
+              district: geo.district,
+            },
+          });
+        }
+        return createdUser;
+      });
+
+      // 創建 newUser
+      // const newUser = await prisma.user.create({
+      //   data: {
+      //     email,
+      //     username,
+      //     realname,
+      //     password: hashedPassword,
+      //     userType: userType as UserType,
+      //     isVerified: false,
+      //     lastLoginAt: null,
+      //   },
+      //   select: {
+      //     id: true,
+      //     email: true,
+      //     username: true,
+      //     userType: true,
+      //   },
+      // });
+
+      // if (userType === "HELPER") {
+      //   const newHelperProfile = await prisma.helperProfile.create({
+      //     data: {
+      //       userId: newUser.id,
+      //       bio,
+      //     },
+      //   });
+      // } else if (userType === "HOST") {
+      //   if (!unitName || !address || !city) {
+      //     return res.status(400).json({
+      //       success: false,
+      //       message: "店家註冊需填寫單位名稱、地址與縣市",
+      //     });
+      //   }
+
+      //   const geo = await geocodeAddress(address);
+      //   let latitude = geo.latitude;
+      //   let longitude = geo.longitude;
+      //   let district = geo.district;
+
+      //   const newHostProfile = await prisma.hostProfile.create({
+      //     data: {
+      //       userId: newUser.id,
+      //       unitName,
+      //       unitDescription,
+      //       address,
+      //       city,
+      //       latitude,
+      //       longitude,
+      //       district,
+      //     },
+      //   });
+      // }
 
       return void res.status(201).json({
         success: true,
@@ -134,6 +194,14 @@ router.post(
       // 查找用戶
       const user = await prisma.user.findUnique({
         where: { email },
+        select: {
+          id: true,
+          email: true,
+          password: true,
+          username: true,
+          userType: true,
+          lastLoginAt: true,
+        },
       });
 
       if (!user) {
@@ -232,38 +300,3 @@ router.get(
 );
 
 export default router;
-
-async function geocodeAddress(address: string) {
-  const apiKey = process.env.OPENCAGE_API_KEY;
-  const url = `https://api.opencagedata.com/geocode/v1/json?q=${encodeURIComponent(
-    address
-  )}&key=${apiKey}&language=zh-TW`;
-
-  const response = await fetch(url);
-  const data = (await response.json()) as { results: any[] };
-
-  if (!data.results || data.results.length === 0) {
-    console.warn(`Geocoding failed for: ${address}`);
-    return {
-      latitude: null,
-      longitude: null,
-      city: null,
-      district: null,
-      note: "Geocoding failed",
-    };
-  }
-
-  const result = data.results[0];
-
-  const lat = result.geometry.lat;
-  const lng = result.geometry.lng;
-  const components = result.components;
-
-  return {
-    latitude: lat,
-    longitude: lng,
-    city: components.city || components.county || components.town,
-    district:
-      components.city_district || components.suburb || components.village,
-  };
-}

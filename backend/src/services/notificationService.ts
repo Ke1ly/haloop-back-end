@@ -1,6 +1,7 @@
 import { Server } from "socket.io";
 import { getUserSockets } from "./socket/socketManager.js";
 import prisma from "../config/database.js";
+import { Notification } from "../types/Subscription.js";
 
 let ioInstance: Server;
 
@@ -11,7 +12,7 @@ export const setIOInstance = (io: Server) => {
 export const sendNotificationToUser = async (
   userId: string,
   eventName: string,
-  notification: any
+  notification: Notification
 ): Promise<boolean> => {
   if (!ioInstance) {
     console.error("Socket.IO 實例未初始化");

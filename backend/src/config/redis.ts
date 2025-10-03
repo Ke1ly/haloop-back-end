@@ -11,7 +11,10 @@ const redisConfig = {
   lazyConnect: true, // 延遲連線直到第一次使用
 };
 
-const redis = new Redis(redisConfig);
+const redis = new Redis({
+  ...redisConfig,
+  retryStrategy: (times) => Math.min(times * 100, 3000),
+});
 
 redis.on("connect", () => console.log("Redis 連接成功"));
 redis.on("error", (err) => console.error("Redis 連接錯誤:", err));

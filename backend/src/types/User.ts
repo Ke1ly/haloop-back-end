@@ -1,76 +1,45 @@
+// validation.ts
 export enum UserType {
   HELPER = "HELPER",
   HOST = "HOST",
 }
-
-export interface User {
-  id: string;
-  email: string;
-  realname: string;
-  username: string;
-  password: string;
-  userType: UserType;
-  isVerified: boolean;
-  lastLoginAt: Date | null;
-  createdAt: Date;
-  updatedAt: Date;
-  // helperProfile?: HelperProfile | null;
-  // hostProfile?: HostProfile | null;
-}
-
-export interface HelperProfile {
-  id: string;
-  userId: string;
-  favorites: Favorite[];
-  Subscriptions: FilterSubscription[];
-  createdAt: Date;
-  updatedAt: Date;
-}
-
-//用於 profile.ts，建立 HostProfile時
-export interface HostProfile {
-  id: string;
-  userId: string;
-  unitName: string;
-  unitDescription: string | null;
-  address: string;
-  city: string;
-  district: string | null;
-  latitude: number | null;
-  longitude: number | null;
-  // workPost?: WorkPost[];
-  // createdAt?: Date;
-  // updatedAt?: Date;
-}
-
-export interface FilterSubscription {
-  id: string;
-  userId: string;
-  name: string;
-  filters: JSON;
-  notifyEmail: Boolean;
-  notifyPush: Boolean;
-}
-
-export interface Favorite {
-  id: string;
-  helperProfileId: string;
-  workPostId: string;
-}
-
-export interface RegisterRequest {
-  email: string;
-  realname: string;
-  username: string;
-  password: string;
-  // confirmPassword: string;
-  userType: UserType;
-}
-
+//routers/auth.ts
 export interface LoginRequest {
   email: string;
   password: string;
 }
+
+export interface BaseRegisterRequest {
+  email: string;
+  realname: string;
+  username: string;
+  password: string;
+  userType: UserType;
+}
+export type RegisterRequest = BaseRegisterRequest &
+  (
+    | (BaseRegisterRequest & {
+        userType: "HOST";
+        unitName: string;
+        unitDescription: string;
+        address: string;
+        city: string;
+      })
+    | (BaseRegisterRequest & {
+        userType: "HELPER";
+        bio: string;
+      })
+  );
+
+// export interface HostRegisterRequest extends BaseRegisterRequest {
+//   unitName: string;
+//   unitDescription: string;
+//   address: string;
+//   city: string;
+// }
+// export interface HelperRegisterRequest extends BaseRegisterRequest {
+//   bio: string;
+// }
 
 export interface AuthResponse {
   success: boolean;
@@ -97,11 +66,47 @@ export interface RefreshTokenRequest {
   refreshToken: string;
 }
 
-export interface Notification {
-  title: string;
-  message: string;
+export interface User {
+  id: string;
+  email: string;
+  realname: string;
+  username: string;
+  password: string;
+  userType: UserType;
+  lastLoginAt: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
+export interface UserUpdateData {
+  email?: string;
+  realname?: string;
+  username?: string;
+}
+
+//用於 profile.ts，建立 HostProfile時
+export interface HostProfile {
+  id: string;
+  userId: string;
   unitName: string;
-  positionName: string;
-  timestamp?: Date;
-  isRead?: boolean;
+  unitDescription: string;
+  address: string;
+  city: string;
+  district: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}
+
+export interface HostProfileUpdateData {
+  unitName?: string;
+  unitDescription?: string;
+  address?: string;
+  city?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  district?: string | null;
+}
+
+export interface HelperProfileUpdateData {
+  bio?: string;
 }

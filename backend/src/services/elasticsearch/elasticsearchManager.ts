@@ -1,6 +1,10 @@
 import { esClient } from "../../config/esClient.js";
 import prisma from "../../config/database.js";
 
+//types
+import { WorkPostDocument, BaseFilter } from "../../types/Subscription.js";
+import { RawWorkPost } from "../../types/Work.js";
+
 // 索引名稱
 const WORK_POST_INDEX = "workposts";
 const SUBSCRIPTIONS_PERCOLATOR_INDEX = "subscriptions_percolator";
@@ -77,23 +81,6 @@ const INDEX_SETTINGS = {
   number_of_shards: 1,
   number_of_replicas: 0,
 };
-
-export interface WorkPostDocument {
-  id: string;
-  startDate: string;
-  endDate: string;
-  averageWorkHours: number;
-  minDuration: number;
-  recruitCount: number;
-  positionCategories: string[];
-  meals: string[];
-  experiences: string[];
-  environments: string[];
-  accommodations: string[];
-  unit: {
-    city: string;
-  };
-}
 
 // 初始化索引
 async function initializeIndices(indexName: string, mapping: any) {
@@ -325,8 +312,6 @@ export async function indexSubscriptionAsPercolator(subscription: any) {
   const boolQuery: any = {
     bool: {
       filter: [],
-      should: [],
-      minimum_should_match: 1,
     },
   };
 
@@ -339,16 +324,6 @@ export async function indexSubscriptionAsPercolator(subscription: any) {
           term: { "unit.city": filters.city },
         },
       },
-    });
-  }
-  if (filters.startDate) {
-    boolQuery.bool.filter.push({
-      range: { startDate: { gte: filters.startDate } },
-    });
-  }
-  if (filters.endDate) {
-    boolQuery.bool.filter.push({
-      range: { endDate: { lte: filters.endDate } },
     });
   }
   if (filters.applicantCount) {
@@ -367,6 +342,33 @@ export async function indexSubscriptionAsPercolator(subscription: any) {
     });
   }
 
+  if (filters.startDate || filters.endDate) {
+    const dateQuery: any = {
+      bool: {
+        filter: [],
+      },
+    };
+    // 貼文的 startDate <= filters.endDate
+    if (filters.endDate) {
+      dateQuery.bool.filter.push({
+        range: { startDate: { lte: filters.endDate } },
+      });
+      console.log(dateQuery);
+    }
+    // 貼文的 endDate >= filters.startDate
+    if (filters.startDate) {
+      dateQuery.bool.filter.push({
+        range: { endDate: { gte: filters.startDate } },
+      });
+      console.log(dateQuery);
+    }
+    // 如果只有一個日期條件，另一個條件不加限制
+    if (dateQuery.bool.filter.length > 0) {
+      console.log("dateQuery", dateQuery.bool.filter);
+      boolQuery.bool.filter.push(dateQuery);
+    }
+  }
+
   const arrayFields = [
     "accommodations",
     "environments",
@@ -376,14 +378,15 @@ export async function indexSubscriptionAsPercolator(subscription: any) {
   ];
   arrayFields.forEach((field) => {
     if (filters[field]?.length > 0) {
-      boolQuery.bool.should.push({
+      boolQuery.bool.filter.push({
         bool: {
-          must: filters[field].map((value: string) => ({
+          should: filters[field].map((value: string) => ({
             term: { [field]: value },
           })),
+          minimum_should_match: 1, // 陣列內至少匹配一個值
         },
       });
-    } // 若無條件，不添加任何查詢，視為通過
+    } // 若無條件，不加任何查詢，視為通過
   });
 
   const doc = {

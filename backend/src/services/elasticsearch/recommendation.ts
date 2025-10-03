@@ -1,30 +1,20 @@
-import cron from "node-cron";
 import redis from "../../config/redis.js";
 import prisma from "../../config/database.js";
 import { esClient } from "../../config/esClient.js";
-import {
-  WorkPostDocument,
-  transformWorkPostForES,
-} from "./elasticsearchManager.js";
+
+//types
+import { BaseFilter, ScoredPost } from "../../types/Subscription.js";
+
+//services & utils
+import { transformWorkPostForES } from "./elasticsearchManager.js";
+import cron from "node-cron";
 
 // 索引名稱
 const WORK_POST_INDEX = "workposts";
 
-interface FilterSubscription {
-  city?: string;
-  applicantCount?: number;
-  averageWorkHours?: number;
-  minDuration?: number;
-  accommodations?: string[];
-  meals?: string[];
-  environments?: string[];
-  experiences?: string[];
-  positionCategories?: string[];
-}
-
 interface Subscription {
   helperProfileId: string;
-  filters: FilterSubscription;
+  filters: BaseFilter;
 }
 
 type SortOrder = "asc" | "desc";
@@ -54,16 +44,6 @@ const CITY_SIMILARITY: Record<string, Record<string, number>> = {
   基隆市: { 基隆市: 1.0, 臺北市: 0.8, 新北市: 0.8, 宜蘭縣: 0.3 },
 };
 
-// 新增一筆 Elasticsearch
-async function indexNewWorkPost(post: any) {
-  const doc = transformWorkPostForES(post);
-  await esClient.index({
-    index: WORK_POST_INDEX,
-    id: String(doc.id),
-    body: doc,
-  });
-}
-
 // 使用 Elasticsearch 獲取推薦貼文
 async function getRecommendedPostsFromES(helperProfileId: string) {
   try {
@@ -81,7 +61,7 @@ async function getRecommendedPostsFromES(helperProfileId: string) {
     }
 
     const subscription = rawSubscriptions[0];
-    const filters = subscription.filters as FilterSubscription;
+    const filters = subscription.filters as BaseFilter;
 
     // 建構 Elasticsearch 查詢
     const esQuery = buildElasticsearchQuery(filters);
@@ -93,13 +73,15 @@ async function getRecommendedPostsFromES(helperProfileId: string) {
     });
 
     // 轉換格式
-    const recommendedPosts = response.body.hits.hits.map((hit: any) => ({
-      post: {
-        id: hit._source.id,
-        ...hit._source,
-      },
-      score: hit._score,
-    }));
+    const recommendedPosts: ScoredPost[] = response.body.hits.hits.map(
+      (hit: any) => ({
+        post: {
+          id: hit._source.id,
+          ...hit._source,
+        },
+        score: hit._score,
+      })
+    );
 
     return recommendedPosts.slice(0, 10);
   } catch (error) {
@@ -108,7 +90,7 @@ async function getRecommendedPostsFromES(helperProfileId: string) {
   }
 }
 // 建構 Elasticsearch 查詢
-function buildElasticsearchQuery(filters: FilterSubscription) {
+function buildElasticsearchQuery(filters: BaseFilter) {
   const must: any[] = [];
   const should: any[] = [];
   const filter: any[] = [];
@@ -116,7 +98,6 @@ function buildElasticsearchQuery(filters: FilterSubscription) {
   // 城市篩選
   if (filters.city) {
     const citySimilarities = CITY_SIMILARITY[filters.city] || {};
-    console.log("citySimilarities", citySimilarities);
 
     // 根據相似度分組
     const cityGroups = {
@@ -126,14 +107,12 @@ function buildElasticsearchQuery(filters: FilterSubscription) {
     };
 
     Object.entries(citySimilarities).forEach(([city, score]) => {
-      console.log("city,score", city, score);
       if (score === 1.0) cityGroups.exact.push(city);
       else if (score === 0.8) cityGroups.high.push(city);
       else if (score === 0.3) cityGroups.medium.push(city);
     });
 
     if (cityGroups.exact.length > 0) {
-      console.log("cityGroups.exact", cityGroups.exact);
       should.push({
         terms: { "unit.city": cityGroups.exact, boost: 5 },
       });
@@ -236,7 +215,7 @@ function buildElasticsearchQuery(filters: FilterSubscription) {
   ];
 
   multiSelectFields.forEach((field) => {
-    const filterValues = filters[field as keyof FilterSubscription] as string[];
+    const filterValues = filters[field as keyof BaseFilter] as string[];
     if (filterValues && filterValues.length > 0) {
       should.push({
         terms: {
@@ -284,7 +263,7 @@ cron.schedule("0 3 * * *", async () => {
       console.log(`Starting user ${helperProfile.id}'s recommendation`);
 
       try {
-        const recommendedPosts = await getRecommendedPostsFromES(
+        const recommendedPosts: ScoredPost[] = await getRecommendedPostsFromES(
           helperProfile.id
         );
         console.log(
@@ -292,7 +271,10 @@ cron.schedule("0 3 * * *", async () => {
         );
         if (recommendedPosts.length > 0) {
           const recommendedPostIds = recommendedPosts.map(
-            (p: { post: WorkPostDocument; score: number }) => p.post.id
+            (
+              p
+              // : { post: WorkPostDocument; score: number }
+            ) => p.post.id
           );
           const key = `recommended:userId:${helperProfile.id}`;
 
@@ -345,7 +327,7 @@ async function getAllHelperProfileIds() {
 }
 
 // 監聽資料變更並即時更新 Elasticsearch
-async function updateWorkPostInES(postId: string) {
+export async function updateWorkPostInES(postId: string) {
   try {
     const workPost = await prisma.workPost.findUnique({
       where: { id: postId },
@@ -385,5 +367,12 @@ async function updateWorkPostInES(postId: string) {
   }
 }
 
-// 匯出主要函式
-export { getRecommendedPostsFromES, updateWorkPostInES, indexNewWorkPost };
+// 新增一筆 Elasticsearch
+export async function indexNewWorkPost(post: any) {
+  const doc = transformWorkPostForES(post);
+  await esClient.index({
+    index: WORK_POST_INDEX,
+    id: String(doc.id),
+    body: doc,
+  });
+}
