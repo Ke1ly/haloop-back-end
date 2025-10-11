@@ -1,8 +1,5 @@
-// validation.ts
-export enum UserType {
-  HELPER = "HELPER",
-  HOST = "HOST",
-}
+import { UserType } from "@prisma/client";
+
 //routers/auth.ts
 export interface LoginRequest {
   email: string;
@@ -16,30 +13,18 @@ export interface BaseRegisterRequest {
   password: string;
   userType: UserType;
 }
-export type RegisterRequest = BaseRegisterRequest &
-  (
-    | (BaseRegisterRequest & {
-        userType: "HOST";
-        unitName: string;
-        unitDescription: string;
-        address: string;
-        city: string;
-      })
-    | (BaseRegisterRequest & {
-        userType: "HELPER";
-        bio: string;
-      })
-  );
-
-// export interface HostRegisterRequest extends BaseRegisterRequest {
-//   unitName: string;
-//   unitDescription: string;
-//   address: string;
-//   city: string;
-// }
-// export interface HelperRegisterRequest extends BaseRegisterRequest {
-//   bio: string;
-// }
+export type RegisterRequest =
+  | (BaseRegisterRequest & {
+      userType: "HOST";
+      unitName: string;
+      unitDescription: string;
+      address: string;
+      city: string;
+    })
+  | (BaseRegisterRequest & {
+      userType: "HELPER";
+      bio: string;
+    });
 
 export interface AuthResponse {
   success: boolean;
@@ -84,7 +69,6 @@ export interface UserUpdateData {
   username?: string;
 }
 
-//用於 profile.ts，建立 HostProfile時
 export interface HostProfile {
   id: string;
   userId: string;
@@ -95,6 +79,12 @@ export interface HostProfile {
   district: string | null;
   latitude: number | null;
   longitude: number | null;
+}
+
+export interface HelperProfile {
+  id: string;
+  userId: string;
+  bio: string;
 }
 
 export interface HostProfileUpdateData {

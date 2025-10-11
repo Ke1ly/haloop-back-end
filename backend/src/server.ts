@@ -5,14 +5,18 @@ import { fileURLToPath } from "url";
 import express from "express";
 import cors from "cors";
 import http from "http";
+import helmet from "helmet";
+import cookieParser from "cookie-parser";
+import rateLimit from "express-rate-limit";
+
 // import routers
-import uploadRouter from "./routes/uploads.js";
-import worksRouter from "./routes/works.js";
-import subscriptionRouter from "./routes/subscription.js";
-import authRouter from "./routes/auth.js";
-import profileRouter from "./routes/profile.js";
-import workpostRouter from "./routes/workpost.js";
-import chatRouter from "./routes/chat.js";
+import uploadRouter from "./controllers/uploads.js";
+import worksRouter from "./controllers/works.js";
+import subscriptionRouter from "./controllers/subscription.js";
+import authRouter from "./controllers/auth.js";
+import profileRouter from "./controllers/profile.js";
+import workpostRouter from "./controllers/workpost.js";
+import chatRouter from "./controllers/chat.js";
 // import services
 import "./services/elasticsearch/recommendation.js";
 import { initializeSocket } from "./services/socket/socketManager.js";
@@ -50,6 +54,64 @@ async function main() {
     })
   );
   app.use(express.json());
+  app.use(cookieParser());
+  app.use(
+    helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          scriptSrc: [
+            "'self'",
+            "https://haloop.yunn.space",
+            "https://maps.googleapis.com",
+            "https://maps.gstatic.com",
+            "https://kit.fontawesome.com",
+            "https://kit-free.fontawesome.com",
+            "'unsafe-inline'",
+          ],
+          imgSrc: [
+            "'self'",
+            "https://d2n15xmo5dlxdb.cloudfront.net",
+            "data:",
+            "https://maps.gstatic.com", // Google Maps Tiles
+            "https://maps.googleapis.com", // Google map marker icons
+          ],
+          styleSrc: [
+            "'self'",
+            "'unsafe-inline'",
+            "https://kit.fontawesome.com",
+            "https://kit-free.fontawesome.com",
+          ],
+          fontSrc: [
+            "'self'",
+            "https://fonts.gstatic.com",
+            "https://kit.fontawesome.com",
+            "https://kit-free.fontawesome.com",
+          ],
+          connectSrc: [
+            "'self'",
+            "https://api.haloop.yunn.space",
+            "https://haloop.yunn.space",
+            "https://maps.googleapis.com",
+          ],
+          frameSrc: ["'self'"],
+          objectSrc: ["'none'"],
+          formAction: ["'self'"],
+        },
+      },
+      crossOriginEmbedderPolicy: false,
+      crossOriginResourcePolicy: { policy: "cross-origin" },
+    })
+  );
+
+  const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 100,
+    message: "Too many requests, please try again later.",
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+  app.use(limiter);
 
   // 路由 ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
   app.use("/api/uploads", uploadRouter);

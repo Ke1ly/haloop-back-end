@@ -1,6 +1,5 @@
-import prisma from "../../config/database.js";
 import { Redis } from "ioredis";
-
+import cookie from "cookie";
 import { Server as SocketIOServer, Socket } from "socket.io";
 import { Server as HttpServer } from "http";
 
@@ -16,18 +15,14 @@ import { connectionHandlers } from "./connectionHandlers.js";
 //types
 import { JwtPayload } from "../../types/User.js";
 
+//models
+import { FindHelperProfile } from "../../models/UserModel.js";
+
 export interface CustomSocket extends Socket {
   userId: string;
   userType?: "HELPER" | "HOST";
   helperProfileId?: string;
 }
-// declare module "socket.io" {
-//   interface Socket {
-//     userId: string;
-//     userType?: "HELPER" | "HOST";
-//     helperProfileId?: string;
-//   }
-// }
 
 // 全域用戶連線映射
 export const userSocketMap = new Map<string, Set<string>>(); // userId -> Set of socketIds
@@ -40,6 +35,7 @@ export const initializeSocket = async (
     cors: {
       origin: process.env.CORS_ORIGIN,
       methods: ["GET", "POST"],
+      credentials: true,
     },
     transports: ["websocket", "polling"], // 支援多種傳輸方式  // MPA 下的連線設定
     allowEIO3: true, // 向下相容
@@ -78,7 +74,9 @@ export const initializeSocket = async (
 
   // JWT 認證中介軟體
   io.use(async (socket: Socket, next) => {
-    const token = socket.handshake.auth.token;
+    // const token = socket.handshake.auth.token;
+    const cookies = cookie.parse(socket.handshake.headers.cookie || "");
+    const token = cookies.session_token;
     if (!token) {
       return next(new Error("請提供 token"));
     }
@@ -94,11 +92,9 @@ export const initializeSocket = async (
 
       // 查詢 helperProfileId（僅對 HELPER）
       if (decoded.userType === "HELPER") {
-        const helperProfile: { id: string } | null =
-          await prisma.helperProfile.findFirst({
-            where: { userId: decoded.userId },
-            select: { id: true },
-          });
+        const helperProfile: { id: string } | null = await FindHelperProfile(
+          decoded.userId
+        );
         if (helperProfile) {
           customSocket.helperProfileId = helperProfile.id;
         } else {

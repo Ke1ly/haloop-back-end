@@ -3,8 +3,8 @@ import { RawWorkPost, formattedWorkPost } from "./Work.js";
 //subscription POST / request.body
 export interface BaseFilter {
   city?: string | null;
-  startDate?: Date | null;
-  endDate?: Date | null;
+  startDate?: string | null;
+  endDate?: string | null;
   applicantCount?: number | null;
   averageWorkHours?: number | null;
   minDuration?: number | null;

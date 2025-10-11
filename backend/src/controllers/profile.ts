@@ -1,4 +1,3 @@
-import prisma from "../config/database.js";
 import express, { Request, Response } from "express";
 
 const router = express.Router();
@@ -17,10 +16,21 @@ import {
   HelperProfileUpdateData,
   HostProfile,
   User,
-  UserType,
 } from "../types/User.js";
+
+//services & utils
 import { GeocodeResult } from "../types/Utils.js";
 import { geocodeAddress } from "../utils/geo.js";
+
+//models
+import {
+  FindExistingOtherUser,
+  FindHostProfile,
+  updateUserAndHostProfile,
+  updateUserAndHelperProfile,
+  FindUserById,
+  FindHelperProfile,
+} from "../models/UserModel.js";
 
 router.patch(
   "/host",
@@ -50,14 +60,11 @@ router.patch(
 
       // 檢查 email ,username 是否已被其他用戶使用
       if (email || username) {
-        const existingUser = await prisma.user.findFirst({
-          where: {
-            OR: [
-              email ? { email, id: { not: userId } } : {},
-              username ? { username, id: { not: userId } } : {},
-            ],
-          },
-        });
+        const existingUser = await FindExistingOtherUser(
+          userId,
+          email,
+          username
+        );
         if (existingUser) {
           return void res.status(409).json({
             success: false,
@@ -86,62 +93,22 @@ router.patch(
       }
 
       //確認有已存在的 hostprofile 可做後續更新
-      const existProfileData = await prisma.hostProfile.findUnique({
-        where: { userId: userId },
-      });
+      const existProfileData = await FindHostProfile(userId);
+      if (!existProfileData) {
+        return void res.status(409).json({
+          success: false,
+          message: "查無 profile 可更新",
+        });
+      }
 
       //transaction 確保兩個資料表更新
-      const { updatedUser, updatedHostProfile } = await prisma.$transaction(
-        async (
-          tx
-        ): Promise<{
-          updatedUser: any;
-          updatedHostProfile: any;
-        }> => {
-          let newUpdatedUser: any = null;
-          if (Object.keys(userDataToUpdate).length) {
-            newUpdatedUser = await tx.user.update({
-              where: { id: userId },
-              data: userDataToUpdate,
-            });
-          }
-          let newUpdatedHostProfile: any = null;
-          if (existProfileData && Object.keys(hostProfileToUpdate).length) {
-            newUpdatedHostProfile = await tx.hostProfile.update({
-              where: { userId },
-              data: hostProfileToUpdate,
-            });
-          }
-          // else if (Object.keys(hostProfileToUpdate).length) {
-          //   newUpdatedHostProfile = await tx.hostProfile.create({
-          //     data: { userId, ...hostProfileToUpdate },
-          //   });
-          // }
-          return {
-            updatedUser: newUpdatedUser,
-            updatedHostProfile: newUpdatedHostProfile,
-          };
-        }
-      );
-
-      // if (existProfileData) {
-      //   if (Object.keys(hostProfileToUpdate).length) {
-      //     updatedHostProfile = await prisma.hostProfile.update({
-      //       where: { userId: userId },
-      //       data: hostProfileToUpdate,
-      //     });
-      //   }
-      // } else {
-      //   if (Object.keys(hostProfileToUpdate).length) {
-      //     updatedHostProfile = await prisma.hostProfile.create({
-      //       data: {
-      //         userId: userId,
-      //         ...hostProfileToUpdate,
-      //       },
-      //     });
-      //   }
-      // }
-
+      const { updatedUser, updatedHostProfile } =
+        await updateUserAndHostProfile(
+          userId,
+          userDataToUpdate,
+          hostProfileToUpdate,
+          true
+        );
       return void res.status(200).json({
         success: true,
         message: "帳號資料變更成功",
@@ -177,14 +144,11 @@ router.patch(
 
       // 檢查 email 或 username 是否已被其他用戶使用
       if (email || username) {
-        const existingUser = await prisma.user.findFirst({
-          where: {
-            OR: [
-              email ? { email, id: { not: userId } } : {},
-              username ? { username, id: { not: userId } } : {},
-            ],
-          },
-        });
+        const existingUser = await FindExistingOtherUser(
+          userId,
+          email,
+          username
+        );
         if (existingUser) {
           return void res.status(409).json({
             success: false,
@@ -201,61 +165,23 @@ router.patch(
       if (bio !== undefined) helperProfileToUpdate.bio = bio;
 
       //確認有已存在的 hostprofile 可做後續更新
-      const existProfileData = await prisma.helperProfile.findUnique({
-        where: { userId: userId },
-      });
+      const existProfileData = await FindHelperProfile(userId);
+
+      if (!existProfileData) {
+        return void res.status(409).json({
+          success: false,
+          message: "查無 profile 可更新",
+        });
+      }
 
       //transaction 確保兩個資料表更新
-      const { updatedUser, updatedHelperProfile } = await prisma.$transaction(
-        async (
-          tx
-        ): Promise<{
-          updatedUser: any;
-          updatedHelperProfile: any;
-        }> => {
-          let newUpdatedUser: any = null;
-          if (Object.keys(userDataToUpdate).length) {
-            newUpdatedUser = await tx.user.update({
-              where: { id: userId },
-              data: userDataToUpdate,
-            });
-          }
-
-          let newupdatedHelperProfile: any = null;
-          if (existProfileData && Object.keys(helperProfileToUpdate).length) {
-            newupdatedHelperProfile = await tx.helperProfile.update({
-              where: { userId },
-              data: helperProfileToUpdate,
-            });
-          }
-          // else if (Object.keys(helperProfileToUpdate).length) {
-          //   newupdatedHelperProfile = await tx.hostProfile.create({
-          //     data: { userId, ...helperProfileToUpdate },
-          //   });
-          // }
-          return {
-            updatedUser: newUpdatedUser,
-            updatedHelperProfile: newupdatedHelperProfile,
-          };
-        }
-      );
-
-      // const updatedUser = Object.keys(userDataToUpdate).length
-      //   ? await prisma.user.update({
-      //       where: { id: userId },
-      //       data: userDataToUpdate,
-      //     })
-      //   : null;
-
-      // const helperProfileToUpdate: any = {};
-      // if (bio !== undefined) helperProfileToUpdate.bio = bio;
-
-      // const updatedHelperProfile = Object.keys(helperProfileToUpdate).length
-      //   ? await prisma.helperProfile.update({
-      //       where: { userId },
-      //       data: helperProfileToUpdate,
-      //     })
-      //   : null;
+      const { updatedUser, updatedHelperProfile } =
+        await updateUserAndHelperProfile(
+          userId,
+          userDataToUpdate,
+          helperProfileToUpdate,
+          true
+        );
 
       return void res.status(200).json({
         success: true,
@@ -281,23 +207,9 @@ router.get(
     const userId = req.user?.userId;
     if (!userId) return void res.status(401).json({ message: "Unauthorized" });
 
-    const profileData = await prisma.hostProfile.findUnique({
-      where: { userId: userId },
-      select: {
-        unitName: true,
-        address: true,
-        city: true,
-        unitDescription: true,
-      },
-    });
-    const userData = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        username: true,
-        realname: true,
-        email: true,
-      },
-    });
+    const profileData = await FindHostProfile(userId);
+    const userData = await FindUserById(userId);
+
     res.status(200).json({
       user: userData,
       hostProfile: profileData,
@@ -312,20 +224,9 @@ router.get(
     const userId = req.user?.userId;
     if (!userId) return void res.status(401).json({ message: "Unauthorized" });
 
-    const profileData = await prisma.helperProfile.findUnique({
-      where: { userId: userId },
-      select: {
-        bio: true,
-      },
-    });
-    const userData = await prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        username: true,
-        realname: true,
-        email: true,
-      },
-    });
+    const profileData = await FindHelperProfile(userId);
+    const userData = await FindUserById(userId);
+
     res.status(200).json({
       user: userData,
       helperProfile: profileData,

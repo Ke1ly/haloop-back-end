@@ -1,11 +1,12 @@
 import { body, validationResult } from "express-validator";
 import { Request, Response, NextFunction } from "express";
-import { UserType } from "../types/User.js";
+import { UserType } from "@prisma/client";
 
 export const validateRegister = [
   body("email").isEmail().withMessage("請輸入有效的電子郵件").normalizeEmail(),
 
   body("realname")
+    .trim()
     .isLength({ min: 2, max: 15 })
     .withMessage("真實姓名長度必須在 2-15 字之間")
     .matches(/^[\u4e00-\u9fa5\s]{2,}$|^[a-zA-Z\s]{2,}$/)
@@ -19,12 +20,14 @@ export const validateRegister = [
     }),
 
   body("username")
+    .trim()
     .isLength({ min: 3, max: 20 })
     .withMessage("用戶名稱必須為 3-20 個字符")
     .matches(/^[a-zA-Z0-9_]+$/)
     .withMessage("用戶名只能包含字母、數字和下底線"),
 
   body("password")
+    .trim()
     .isLength({ min: 6 })
     .withMessage("密碼至少需要 6 個字符")
     .matches(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/)
@@ -45,9 +48,17 @@ export const validateRegister = [
       if (!VALID_CITIES.includes(req.body.city)) {
         throw new Error("請選擇有效的縣市");
       }
+      ["unitName", "unitDescription", "address"].forEach((key) => {
+        if (/<[a-z][\s\S]*>/i.test(req.body[key])) {
+          throw new Error(`${key} 不允許包含 HTML 標籤`);
+        }
+      });
     } else if (userType === UserType.HELPER) {
       if (!req.body.bio) throw new Error("幫手必須提供自我介紹");
       if (req.body.bio.length < 20) throw new Error("自我介紹至少 20 字");
+      if (/<[a-z][\s\S]*>/i.test(req.body.bio)) {
+        throw new Error("自我介紹不允許包含 HTML 標籤");
+      }
     }
     return true;
   }),
@@ -125,6 +136,7 @@ const realnameValidation = body("realname")
 
 const usernameValidation = body("username")
   .optional()
+  .trim()
   .isLength({ min: 3, max: 20 })
   .withMessage("用戶名稱必須為 3-20 個字符")
   .matches(/^[a-zA-Z0-9_]+$/)
@@ -133,13 +145,24 @@ const usernameValidation = body("username")
 const unitNameValidation = body("unitName")
   .optional()
   .notEmpty()
-  .withMessage("單位名稱為必填");
+  .withMessage("單位名稱為必填")
+  .custom((value) => {
+    if (/<[a-z][\s\S]*>/i.test(value)) {
+      throw new Error("不允許包含 HTML 標籤");
+    }
+    return true;
+  });
 
 const addressValidation = body("address")
   .optional()
   .notEmpty()
-  .withMessage("地址為必填");
-
+  .withMessage("地址為必填")
+  .custom((value) => {
+    if (/<[a-z][\s\S]*>/i.test(value)) {
+      throw new Error("不允許包含 HTML 標籤");
+    }
+    return true;
+  });
 const cityValidation = body("city")
   .optional()
   .notEmpty()
@@ -155,12 +178,25 @@ const cityValidation = body("city")
 const unitDescriptionValidation = body("unitDescription")
   .optional()
   .notEmpty()
-  .withMessage("單位介紹為必填");
+  .withMessage("單位介紹為必填")
+  .custom((value) => {
+    if (/<[a-z][\s\S]*>/i.test(value)) {
+      throw new Error("不允許包含 HTML 標籤");
+    }
+    return true;
+  });
 
 const bioValidation = body("bio")
+  .trim()
   .optional()
   .isLength({ min: 20 })
-  .withMessage("自我介紹至少 20 字");
+  .withMessage("自我介紹至少 20 字")
+  .custom((value) => {
+    if (/<[a-z][\s\S]*>/i.test(value)) {
+      throw new Error("不允許包含 HTML 標籤");
+    }
+    return true;
+  });
 
 // PATCH 專用的驗證函式
 export const validatePatchProfile = (role: "HOST" | "HELPER") => {

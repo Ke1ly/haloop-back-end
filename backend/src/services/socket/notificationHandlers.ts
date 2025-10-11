@@ -1,10 +1,16 @@
-import prisma from "../../config/database.js";
 //services & utils
 import { Socket, Server } from "socket.io";
 import { getUserSockets } from "./socketManager.js";
+
 //types
-import { Notification } from "../../types/Subscription.js";
 import { CustomSocket } from "../socket/socketManager.js";
+
+//models
+import {
+  getUnreadCountByHelperProfileId,
+  markNotificationsRead,
+  FindNotifications,
+} from "../../models/NotificationModel.js";
 
 export const notificationHandlers = async (
   socket: CustomSocket,
@@ -32,15 +38,8 @@ export const notificationHandlers = async (
           return;
         }
 
-        const count = await prisma.notification.count({
-          where: {
-            helperProfileId: helperProfileId,
-            isRead: false,
-          },
-        });
-
+        const count = await getUnreadCountByHelperProfileId(helperProfileId);
         const response = { count };
-
         socket.emit("unread_count", response);
 
         if (typeof callback === "function") {
@@ -65,23 +64,11 @@ export const notificationHandlers = async (
         return;
       }
 
-      await prisma.notification.updateMany({
-        where: {
-          helperProfileId: helperProfileId,
-          isRead: false,
-        },
-        data: { isRead: true },
-      });
-
+      await markNotificationsRead(helperProfileId);
       const userSockets = getUserSockets(userId);
 
       // 同時更新未讀數量
-      const newCount = await prisma.notification.count({
-        where: {
-          helperProfileId: helperProfileId,
-          isRead: false,
-        },
-      });
+      const newCount = await getUnreadCountByHelperProfileId(helperProfileId);
       userSockets.forEach((socketId) => {
         io.to(socketId).emit("unread_count", { count: newCount });
       });
@@ -115,21 +102,11 @@ export const notificationHandlers = async (
         }
         const { limit = 20, offset = 0 } = data;
 
-        const notifications: Notification[] =
-          await prisma.notification.findMany({
-            where: { helperProfileId: helperProfileId },
-            orderBy: { createdAt: "desc" },
-            take: limit,
-            skip: offset,
-            select: {
-              id: true,
-              title: true,
-              message: true,
-              data: true,
-              createdAt: true,
-              isRead: true,
-            },
-          });
+        const notifications = await FindNotifications(
+          helperProfileId,
+          limit,
+          offset
+        );
 
         const response = { notifications };
         socket.emit("notifications_list", response);

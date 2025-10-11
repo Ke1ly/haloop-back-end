@@ -1,6 +1,5 @@
 import { Server } from "socket.io";
 import { getUserSockets } from "./socket/socketManager.js";
-import prisma from "../config/database.js";
 import { Notification } from "../types/Subscription.js";
 
 let ioInstance: Server;
@@ -63,55 +62,3 @@ export const sendNotificationToUser = async (
   //   }
   // }
 };
-
-// export const sendSocketNotificationToHelper = async (
-//   helperId: string,
-//   userId: string,
-//   notification: any
-// ): Promise<void> => {
-//   try {
-//     const helperProfile = await prisma.helperProfile.findUnique({
-//       where: { id: helperId },
-//     });
-//     if (!helperProfile) {
-//       console.error(
-//         `HelperProfile with ID ${helperId} not found for user ${userId}`
-//       );
-//       return;
-//     }
-
-//     // 儲存到資料庫
-//     await prisma.notification.create({
-//       data: {
-//         helperProfileId: helperId,
-//         title: notification.title,
-//         message: notification.message,
-//         data: notification.data || {},
-//         isRead: false,
-//       },
-//     });
-
-//     const unreadCount = await prisma.notification.count({
-//       where: {
-//         helperProfileId: helperId,
-//         isRead: false,
-//       },
-//     });
-
-//     const sent = await sendNotificationToUser(
-//       userId,
-//       "new_notification",
-//       notification
-//     );
-
-//     // 如果用戶在線，更新未讀數量
-//     if (sent) {
-//       await sendNotificationToUser(userId, "unread_count", {
-//         count: unreadCount,
-//       });
-//     }
-//   } catch (error) {
-//     console.error(`發送通知給用戶 ${helperId} 失敗:`, error);
-//     throw error;
-//   }
-// };

@@ -1,5 +1,4 @@
 import redis from "../../config/redis.js";
-import prisma from "../../config/database.js";
 import { esClient } from "../../config/esClient.js";
 
 //types
@@ -8,6 +7,13 @@ import { BaseFilter, ScoredPost } from "../../types/Subscription.js";
 //services & utils
 import { transformWorkPostForES } from "./elasticsearchManager.js";
 import cron from "node-cron";
+
+//models
+import {
+  FindSubscriptions,
+  FindUniqueWorkPostForES,
+} from "../../models/PostModel.js";
+import { GetAllHelperProfiles } from "../../models/UserModel.js";
 
 // 索引名稱
 const WORK_POST_INDEX = "workposts";
@@ -48,13 +54,7 @@ const CITY_SIMILARITY: Record<string, Record<string, number>> = {
 async function getRecommendedPostsFromES(helperProfileId: string) {
   try {
     // 獲取使用者的篩選條件
-    const rawSubscriptions = await prisma.filterSubscription.findMany({
-      where: { helperProfileId },
-      select: {
-        helperProfileId: true,
-        filters: true,
-      },
-    });
+    const rawSubscriptions = await FindSubscriptions(helperProfileId);
 
     if (rawSubscriptions.length === 0) {
       return [];
@@ -257,7 +257,7 @@ cron.schedule("0 3 * * *", async () => {
   try {
     console.log("Starting daily recommendation job with Elasticsearch...");
 
-    const helperProfiles = await getAllHelperProfileIds();
+    const helperProfiles = await GetAllHelperProfiles();
 
     for (const helperProfile of helperProfiles) {
       console.log(`Starting user ${helperProfile.id}'s recommendation`);
@@ -317,39 +317,10 @@ cron.schedule("0 3 * * *", async () => {
   }
 });
 
-async function getAllHelperProfileIds() {
-  const helperProfileIds = await prisma.helperProfile.findMany({
-    select: {
-      id: true,
-    },
-  });
-  return helperProfileIds;
-}
-
 // 監聽資料變更並即時更新 Elasticsearch
 export async function updateWorkPostInES(postId: string) {
   try {
-    const workPost = await prisma.workPost.findUnique({
-      where: { id: postId },
-      select: {
-        id: true,
-        startDate: true,
-        endDate: true,
-        averageWorkHours: true,
-        minDuration: true,
-        recruitCount: true,
-        positionCategories: { select: { name: true } },
-        meals: { select: { name: true } },
-        experiences: { select: { name: true } },
-        environments: { select: { name: true } },
-        accommodations: { select: { name: true } },
-        unit: {
-          select: {
-            city: true,
-          },
-        },
-      },
-    });
+    const workPost = await FindUniqueWorkPostForES(postId);
 
     if (workPost) {
       await esClient.index({

@@ -33,9 +33,7 @@ model WorkPost {
   experiences         Experience[]       @relation("WorkPostPositionExperiences")
   environments        Environment[]      @relation("WorkPostPositionEnvironments")
   benefitsDescription String
-  // favoriteBy          Favorite[]
-  // availabilities      Availability[]
-  // application         Application[]
+
   matchedSubscriptions MatchedWorkPost[]
   isActive            Boolean            @default(true)
   createdAt           DateTime           @default(now())
@@ -47,15 +45,6 @@ model WorkPost {
 //  @@index([minDuration])
   @@map("work_posts")
 }
-
-// model Availability {
-//   id                    String   @id @default(cuid())
-//   workPostId            String
-//   date                  DateTime
-//   maxRecruitCount       Int
-//   remainingRecruitCount Int
-//   workPost              WorkPost @relation(fields: [workPostId], references: [id])
-// }
 
 model WorkPostImage {
   id         String   @id @default(cuid())
@@ -128,10 +117,7 @@ model User {
   password      String
   realname      String
   username      String                    @unique
-  // phone         String?                   @unique
-  // avatar        String?
   userType      UserType                  @default(HELPER)
-  // isVerified    Boolean                   @default(false)
   createdAt     DateTime                  @default(now())
   updatedAt     DateTime                  @updatedAt
   lastLoginAt   DateTime?
@@ -170,13 +156,9 @@ model HelperProfile {
   id            String               @id @default(cuid())
   userId        String               @unique
   user          User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
-  bio           String?
-  // birthDate     DateTime?
-  // gender        Gender?
-  // favorites     Favorite[]
+  bio           String
   subcriptions  FilterSubscription[]
   notifications Notification[]
-  // applications  Application[]
   createdAt     DateTime             @default(now())
   updatedAt     DateTime             @updatedAt
 
@@ -201,39 +183,6 @@ model Notification {
   @@index([helperProfileId, isRead]) // 複合索引：按幫手和已讀狀態查詢
   @@map("notifications")
 }
-
-// enum Gender {
-//   MALE
-//   FEMALE
-//   OTHER
-// }
-
-// model Favorite {
-//   id              String        @id @default(cuid())
-//   helperProfileId String
-//   workPostId      String
-//   helperProfile   HelperProfile @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
-//   workPost        WorkPost      @relation(fields: [workPostId], references: [id], onDelete: Cascade)
-//   createdAt       DateTime      @default(now())
-
-//   @@unique([helperProfileId, workPostId])
-//   @@map("favorites")
-// }
-
-// model Application {
-//   id              String   @id @default(cuid())
-//   helperProfileId String
-//   workPostId      String
-//   startDate       DateTime
-//   endDate         DateTime
-//   createdAt       DateTime @default(now())
-
-//   workPost      WorkPost      @relation(fields: [workPostId], references: [id])
-//   helperProfile HelperProfile @relation(fields: [helperProfileId], references: [id], onDelete: Cascade)
-
-//   @@unique([helperProfileId, workPostId])
-//   @@map("applications")
-// }
 
 model FilterSubscription {
   id                 String             @id @default(cuid())
@@ -264,14 +213,14 @@ model MatchedWorkPost {
   id                     String              @id @default(cuid())
   workPostId             String
   filterSubscriptionId   String
-  matchedAt              DateTime            @default(now())  // 匹配時間，用於排序
-  isNotified             Boolean             @default(true)   // 是否已發送通知（可擴展）
+  matchedAt              DateTime            @default(now())  
+  isNotified             Boolean             @default(true)   
 
   workPost               WorkPost            @relation(fields: [workPostId], references: [id], onDelete: Cascade)
   filterSubscription     FilterSubscription  @relation(fields: [filterSubscriptionId], references: [id], onDelete: Cascade)
 
-  @@unique([workPostId, filterSubscriptionId])  // 避免重複
-  @@index([filterSubscriptionId, matchedAt])    // 索引：按 Filter 和時間查詢匹配貼文
+  @@unique([workPostId, filterSubscriptionId])  
+  @@index([filterSubscriptionId, matchedAt])   
   @@map("matched_work_posts")
 }
 
@@ -281,7 +230,7 @@ model Conversation {
   lastMessageAt DateTime?
   createdAt     DateTime         @default(now())
   // updatedAt     DateTime  @updatedAt //若之後啟用群組聊天，作為成員更新設定的紀錄
-
+uniqueParticipantPair  String?   @unique
   participants ConversationParticipant[]
   messages     Message[]
 

@@ -1,6 +1,5 @@
 import { Redis } from "ioredis";
 import { esClient } from "../config/esClient.js";
-import prisma from "../config/database.js";
 
 //services&utils
 import { createAdapter } from "@socket.io/redis-adapter";
@@ -12,6 +11,14 @@ import { SUBSCRIPTIONS_PERCOLATOR_INDEX } from "../services/elasticsearch/elasti
 // import { sendSocketNotificationToHelper } from "../services/notificationService.js";
 import { formattedWorkPost } from "../types/Work.js";
 import { MatchResult, Notification } from "../types/Subscription.js";
+
+// models
+import { CreateMatchingWorkPosts } from "../models/PostModel.js";
+import { FindHelperProfiles } from "../models/UserModel.js";
+import {
+  createNotifications,
+  getUnreadCounts,
+} from "../models/NotificationModel.js";
 
 const redisConfig = {
   host: process.env.REDIS_HOST,
@@ -112,13 +119,7 @@ export function initNotificationWorker() {
       const matches = await getMatchingSubscriptions(post);
 
       if (matches.length > 0) {
-        await prisma.matchedWorkPost.createMany({
-          data: matches.map((m) => ({
-            workPostId: post.id,
-            filterSubscriptionId: m.subscriptionId,
-          })),
-          skipDuplicates: true,
-        });
+        await CreateMatchingWorkPosts(matches, post.id);
 
         console.log(
           `found ${matches.length} matches，存入資料庫，準備發送通知`
@@ -193,58 +194,6 @@ async function getMatchingSubscriptions(formattedWorkPost: formattedWorkPost) {
   }
 }
 
-// async function sendBatchNotifications(
-//   helperIds: string[],
-//   workPost: any,
-//   unitName: string
-// ) {
-//   const notification = {
-//     id: `workpost_${workPost.id}_${Date.now()}`,
-//     title: "新店家符合您的條件！",
-//     message: `${unitName} 發佈了新貼文：${workPost.positionName}`,
-//     data: {
-//       workPostId: workPost.id,
-//       unitName: unitName,
-//       positionName: workPost.positionName,
-//     },
-//     timestamp: new Date().toISOString(),
-//   };
-
-//   const helperProfiles = await prisma.helperProfile.findMany({
-//     where: { id: { in: helperIds } },
-//     select: { id: true, userId: true },
-//   });
-
-//   const helperIdToUserId = new Map(
-//     helperProfiles.map((profile) => [profile.id, profile.userId])
-//   );
-
-//   const results = await Promise.allSettled(
-//     helperIds.map((helperId) => {
-//       try {
-//         const userId = helperIdToUserId.get(helperId);
-//         if (!userId) {
-//           throw new Error(`未找到對應的 helperProfile，helperId: ${helperId}`);
-//         }
-//         sendSocketNotificationToHelper(helperId, userId, notification);
-//       } catch (error) {
-//         console.error(`處理 helperId ${helperId} 失敗:`, error);
-//         throw error;
-//       }
-//     })
-//   );
-
-//   // 記錄失敗的通知
-//   results.forEach((result, index) => {
-//     if (result.status === "rejected") {
-//       console.error(
-//         `Failed to send notification to helper ${helperIds[index]}:`,
-//         result.reason
-//       );
-//     }
-//   });
-// }
-
 // Worker 批次發送通知(取代原本sendBatchNotifications)
 async function sendBatchNotificationsFromWorker(
   helperIds: string[],
@@ -262,34 +211,14 @@ async function sendBatchNotificationsFromWorker(
   };
 
   // 取得 helper 對應的 user // 未來如果 helperIds 多，加分頁 { take: 100, skip: offset }
-  const helperProfiles = await prisma.helperProfile.findMany({
-    where: { id: { in: helperIds } },
-    select: { id: true, userId: true },
-  });
+  const helperProfiles = await FindHelperProfiles(helperIds);
 
   // 批量插入資料
-  const notificationsToCreate = helperProfiles.map((profile) => ({
-    helperProfileId: profile.id,
-    title: notificationBase.title,
-    message: notificationBase.message,
-    data: notificationBase.data,
-    isRead: false,
-  }));
-
-  await prisma.notification.createMany({
-    data: notificationsToCreate,
-  });
+  await createNotifications(helperProfiles, notificationBase);
 
   // 批量計算所有 helperProfileId 的未讀數
   const helperProfileIds = helperProfiles.map((p) => p.id);
-  const unreadCounts = await prisma.notification.groupBy({
-    by: ["helperProfileId"],
-    _count: { id: true },
-    where: {
-      helperProfileId: { in: helperProfileIds },
-      isRead: false,
-    },
-  });
+  const unreadCounts = await getUnreadCounts(helperProfileIds);
 
   // 建立 map 快速查找未讀數
   const unreadMap = new Map(

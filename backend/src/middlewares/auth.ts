@@ -12,9 +12,7 @@ export function authorizeRole(requiredRole?: "HOST" | "HELPER") {
     res: Response,
     next: NextFunction
   ): void => {
-    //從 Header 取得 token
-    const authHeader = req.headers["authorization"];
-    const token = authHeader && authHeader.split(" ")[1];
+    const token = req.cookies.session_token;
 
     // 如果沒 token，return
     if (!token) {
