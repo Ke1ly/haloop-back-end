@@ -104,23 +104,45 @@ async function main() {
     })
   );
 
-  const limiter = rateLimit({
+  //全域 limiter 防惡意攻擊
+  const globalLimiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 1000,
+  });
+  app.use(globalLimiter);
+
+  const generalLimiter = rateLimit({
     windowMs: 15 * 60 * 1000,
-    max: 100,
+    max: 600,
     message: "Too many requests, please try again later.",
     standardHeaders: true,
     legacyHeaders: false,
   });
-  app.use(limiter);
+
+  const strictLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 300,
+    message: "Too many requests, please try again later.",
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
+  const looseLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max: 1000,
+    message: "Too many requests, please try again later.",
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
 
   // 路由 ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-  app.use("/api/uploads", uploadRouter);
-  app.use("/api/works", worksRouter);
-  app.use("/api/subscription", subscriptionRouter);
-  app.use("/api/auth", authRouter);
-  app.use("/api/profile", profileRouter);
-  app.use("/api/workpost", workpostRouter);
-  app.use("/api/chat", chatRouter);
+  app.use("/api/uploads", strictLimiter, uploadRouter);
+  app.use("/api/works", looseLimiter, worksRouter);
+  app.use("/api/subscription", strictLimiter, subscriptionRouter);
+  app.use("/api/auth", looseLimiter, authRouter);
+  app.use("/api/profile", generalLimiter, profileRouter);
+  app.use("/api/workpost", looseLimiter, workpostRouter);
+  app.use("/api/chat", generalLimiter, chatRouter);
 
   // 靜態檔案 ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
 

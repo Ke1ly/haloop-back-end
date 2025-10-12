@@ -7,6 +7,7 @@ import {
   validateLogin,
   handleValidationErrors,
 } from "../middlewares/validation.js";
+import rateLimit from "express-rate-limit";
 
 //types
 import { RegisterRequest, LoginRequest } from "../types/User.js";
@@ -31,6 +32,11 @@ const router = express.Router();
 
 router.post(
   "/register",
+  rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 5,
+    message: "Too many register attempts.",
+  }),
   validateRegister,
   handleValidationErrors,
   async (req: Request, res: Response) => {
@@ -135,6 +141,11 @@ router.post(
 
 router.post(
   "/login",
+  rateLimit({
+    windowMs: 10 * 60 * 1000,
+    max: 10,
+    message: "Too many register attempts.",
+  }),
   validateLogin,
   handleValidationErrors,
   async (req: Request, res: Response) => {
