@@ -192,9 +192,10 @@ router.post(
       res.cookie("session_token", token, {
         httpOnly: true,
         secure: process.env.NODE_ENV === "production", // dev 時不在 HTTPS 下傳送，設 false
-        // sameSite: process.env.NODE_ENV === "production" ? "lax" : "none",
         sameSite: "lax",
-        domain: ".haloop.yunn.space",
+        ...(process.env.NODE_ENV === "production"
+          ? { domain: ".haloop.yunn.space" }
+          : {}), // dev 不設定 domain
         maxAge: 1000 * 60 * 60,
         path: "/",
       });
@@ -221,6 +222,12 @@ router.get(
   "/me",
   authorizeRole(),
   async (req: AuthenticatedRequest, res: Response) => {
+    res.setHeader(
+      "Cache-Control",
+      "no-store, no-cache, must-revalidate, private"
+    );
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
     try {
       const userId = req.user?.userId;
       if (!userId) {
@@ -264,8 +271,13 @@ router.post(
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
       sameSite: "lax",
+      domain:
+        process.env.NODE_ENV === "production"
+          ? ".haloop.yunn.space"
+          : undefined,
       path: "/",
     });
+    res.setHeader("Cache-Control", "no-store");
     res.json({ success: true, message: "Logged out" });
   }
 );
