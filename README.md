@@ -1,7 +1,16 @@
 ## Project Overview
 Haloop is a work-exchange platform that helps volunteers easily find suitable hosts through advanced filters and real-time chat. </br>
 Volunteers can subscribe to custom filters for instant notifications and receive personalized recommendations - instead of browsing endless social media posts. </br>
-Demo: https://haloop.yunn.space
+Demo: https://haloop.yunn.space</br>
+
+You're welcome to use the pre-registered trial account:
+> **Helper account**</br>
+> email: visitor2025@haloop.io</br>
+> password: Visitor2025</br>
+
+> **Host account**</br>
+> email: hostvisitor2025@haloop.io</br>
+> password: hostVisitor2025</br>
 
 ## Main Features
 **✴︎ Host Post Upload**</br>
