@@ -55,7 +55,6 @@ async function getRecommendedPostsFromES(helperProfileId: string) {
   try {
     // 獲取使用者的篩選條件
     const rawSubscriptions = await FindSubscriptions(helperProfileId);
-
     if (rawSubscriptions.length === 0) {
       return [];
     }
@@ -279,12 +278,14 @@ cron.schedule("0 3 * * *", async () => {
           const key = `recommended:userId:${helperProfile.id}`;
 
           // 找出尚未推薦過的貼文
-          const alreadyRecommended = await redis.smembers(key);
+          const alreadyRecommended = await redis.zrange(key, 0, -1);
           const newRecommendations = recommendedPostIds.filter(
             (id) => !alreadyRecommended.includes(String(id))
           );
+
           // 推薦最多 5 筆新資料
-          const finalRecommendations = newRecommendations.slice(0, 5);
+          let finalRecommendations = newRecommendations.slice(0, 5);
+
           // 加入 Redis 記錄，避免未來重複推薦
           if (finalRecommendations.length > 0) {
             const timestamp = Date.now();

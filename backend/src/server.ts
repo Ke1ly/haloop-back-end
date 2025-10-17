@@ -1,7 +1,5 @@
 //import basic utils
 import dotenv from "dotenv";
-import path from "path";
-import { fileURLToPath } from "url";
 import express from "express";
 import cors from "cors";
 import http from "http";
@@ -104,6 +102,7 @@ async function main() {
     })
   );
 
+  app.set("trust proxy", 1);
   //全域 limiter 防惡意攻擊
   const globalLimiter = rateLimit({
     windowMs: 1 * 60 * 1000,
@@ -143,28 +142,6 @@ async function main() {
   app.use("/api/profile", generalLimiter, profileRouter);
   app.use("/api/workpost", looseLimiter, workpostRouter);
   app.use("/api/chat", generalLimiter, chatRouter);
-
-  // 靜態檔案 ＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝＝
-
-  const __filename = fileURLToPath(import.meta.url);
-  const __dirname = path.dirname(__filename);
-
-  app.use(express.static(path.join(__dirname, "dist")));
-  app.get("/workpost/:id", (req, res) => {
-    res.sendFile(path.join(__dirname, "dist", "workpost.html"));
-  });
-  app.get("/account", (req, res) => {
-    res.sendFile(path.join(__dirname, "dist", "account.html"));
-  });
-  app.get("/works", (req, res) => {
-    res.sendFile(path.join(__dirname, "dist", "works.html"));
-  });
-  app.get("/chat", (req, res) => {
-    res.sendFile(path.join(__dirname, "dist", "chat.html"));
-  });
-  app.get("/", (req, res) => {
-    res.sendFile(path.join(__dirname, "dist", "index.html"));
-  });
 
   if (process.env.NODE_ENV === "development") {
     setSharedIOInstance(io);
